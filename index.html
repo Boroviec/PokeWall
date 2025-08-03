@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PokeWall – Collection</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .slab {
+      background: #111;
+      border-radius: 0.75rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .card-slot {
+      width: 120px;
+      aspect-ratio: 3/4;
+      position: relative;
+      border-radius: 0.7rem;
+      overflow: hidden;
+      background: #232323;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: box-shadow .2s;
+      margin-bottom: 0.5rem;
+    }
+    .card-slot:focus {
+      outline: 2px solid #FFD700;
+      z-index: 1;
+    }
+    .poke-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0; left: 0;
+      border-radius: 0.7rem;
+      border: 3px solid #111;
+      transition: opacity 1.2s cubic-bezier(.23,.62,.47,1.27);
+    }
+    .poke-img.back { filter: grayscale(0.9) brightness(0.95); opacity: 1; }
+    .poke-img.front { opacity: 0; }
+    .card-slot[data-state="front"] .poke-img.front { opacity: 1; }
+    .card-slot[data-state="front"] .poke-img.back { opacity: 0; }
+    .card-name {
+      color: #fff;
+      text-align: center;
+      margin-top: 2px;
+      font-weight: 500;
+      font-size: 1.1rem;
+      text-shadow: 0 1px 4px #000c;
+      letter-spacing: .03em;
+    }
+    body { background: #fff; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <h1 class="text-4xl font-bold text-center text-gray-800 mb-6 mt-3">PokeWall</h1>
+  <div id="wall" class="flex flex-col items-center"></div>
+  <script>
+    // Settings
+    const CARDS_PER_SLAB = 6;
+    const CARD_BACK = "img/card-back.png"; // use your own card back image
+
+    // Load data
+    fetch("pokedex.json")
+      .then(res => res.json())
+      .then(all => {
+        // Group cards in slabs (rows)
+        let wallDiv = document.getElementById("wall");
+        wallDiv.innerHTML = "";
+        for (let i=0; i<all.length; i+=CARDS_PER_SLAB) {
+          let slab = document.createElement("div");
+          slab.className = "slab";
+          all.slice(i, i+CARDS_PER_SLAB).forEach(card => {
+            const slot = document.createElement("div");
+            slot.className = "card-slot";
+            // Card for OWNED
+            if(card.owned && card.image){
+              slot.innerHTML = `<img src="${card.image}" alt="${card.name}" class="poke-img front" loading="lazy">`;
+              slot.style.cursor = "pointer";
+              slot.onclick = () => { if(card.pricecheck) window.open(card.pricecheck, "_blank"); };
+            }
+            // Card for NOT OWNED
+            else{
+              slot.setAttribute("data-state", "back");
+              slot.innerHTML = `
+                <img class="poke-img back" src="${CARD_BACK}" alt="Pokémon back">
+                <img class="poke-img front" src="img/${String(card.number).padStart(3,"0")}_${card.name.toLowerCase().replace(/[^a-z0-9]/g,'')}.png" alt="${card.name}">
+              `;
+              let flipTimer, revertTimer;
+              slot.addEventListener("mouseenter", () => {
+                flipTimer = setTimeout(()=>{
+                  slot.setAttribute("data-state","front");
+                }, 800);
+                if(revertTimer) { clearTimeout(revertTimer); revertTimer = null; }
+              });
+              slot.addEventListener("mouseleave", () => {
+                clearTimeout(flipTimer);
+                revertTimer = setTimeout(()=>{
+                  slot.setAttribute("data-state","back");
+                }, 3000);
+              });
+            }
+            const label = document.createElement("div");
+            label.className = "card-name";
+            label.textContent = card.name;
+            let wrap = document.createElement("div");
+            wrap.style.display = "flex";
+            wrap.style.flexDirection = "column";
+            wrap.style.alignItems = "center";
+            wrap.appendChild(slot);
+            wrap.appendChild(label);
+            slab.appendChild(wrap);
+          });
+          wallDiv.appendChild(slab);
+        }
+      });
+  </script>
+</body>
+</html>
