@@ -1,0 +1,6 @@
+[
+    { "number": 1, "name": "Bulbasaur", "image": "img/001_bulbasaur.jpg" },
+    { "number": 2, "name": "Ivysaur",    "image": "img/002_ivysaur.jpg" },
+    { "number": 25, "name": "Pikachu",   "image": "img/025_pikachu.jpg" }
+  ]
+  
