@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>PokeWall – Kolekcja</title>
+  <title>PokeWall – Collection</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -45,7 +45,6 @@
       border-radius: 0.7rem;
       border: 3px solid #111;
       transition: opacity 1.2s cubic-bezier(.23,.62,.47,1.27);
-      background: #fff;
     }
     .poke-img.back { filter: grayscale(0.9) brightness(0.95); opacity: 1; }
     .poke-img.front { opacity: 0; }
@@ -67,51 +66,47 @@
   <h1 class="text-4xl font-bold text-center text-gray-800 mb-6 mt-3">PokeWall</h1>
   <div id="wall" class="flex flex-col items-center"></div>
   <script>
-    // Ustawienia
+    // Settings
     const CARDS_PER_SLAB = 6;
-    // Możesz wrzucić własny plik do /img/card-back.png i podmienić ścieżkę poniżej:
-    const CARD_BACK = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+    const CARD_BACK = "img/card-back.png"; // Zmień na swój obrazek rewersu
 
+    // Load data
     fetch("pokedex.json")
       .then(res => res.json())
-      .then(all => {
-        // Zamieniamy wszystkie rodziny ewolucyjne na jedną płaską tablicę pokemonów:
-        const pokemons = all.evolution_families.flatMap(f => f.chain);
+      .then(data => {
+        // Rozwijamy wszystkie łańcuchy ewolucji do płaskiej listy
+        const all = data.evolution_families.flatMap(fam => fam.chain);
 
+        // Group cards in slabs (rows)
         let wallDiv = document.getElementById("wall");
         wallDiv.innerHTML = "";
-        for (let i=0; i<pokemons.length; i+=CARDS_PER_SLAB) {
+        for (let i=0; i<all.length; i+=CARDS_PER_SLAB) {
           let slab = document.createElement("div");
           slab.className = "slab";
-          pokemons.slice(i, i+CARDS_PER_SLAB).forEach(card => {
+          all.slice(i, i+CARDS_PER_SLAB).forEach(card => {
             const slot = document.createElement("div");
             slot.className = "card-slot";
-            // --- Posiadana karta (demo: tylko Pikachu) ---
-            if(card.name === "Pikachu") {
-              slot.innerHTML = `<img src="${card.image}" alt="${card.name}" class="poke-img front" loading="lazy">`;
-              slot.style.cursor = "pointer";
-              slot.onclick = () => window.open(`https://www.pricecharting.com/search-products?q=${encodeURIComponent(card.name)}&type=prices`, "_blank");
-            } else {
-              // --- Brak karty ---
-              slot.setAttribute("data-state", "back");
-              slot.innerHTML = `
-                <img class="poke-img back" src="${CARD_BACK}" alt="Pokémon back">
-                <img class="poke-img front" src="${card.image}" alt="${card.name}">
-              `;
-              let flipTimer, revertTimer;
-              slot.addEventListener("mouseenter", () => {
-                flipTimer = setTimeout(()=>{
-                  slot.setAttribute("data-state","front");
-                }, 800);
-                if(revertTimer) { clearTimeout(revertTimer); revertTimer = null; }
-              });
-              slot.addEventListener("mouseleave", () => {
-                clearTimeout(flipTimer);
-                revertTimer = setTimeout(()=>{
-                  slot.setAttribute("data-state","back");
-                }, 3000);
-              });
-            }
+            
+            // PRZYKŁADOWA LOGIKA: pokaż tylko rewers, a po hoverze (800ms) front (obrazek z jsona)
+            slot.setAttribute("data-state", "back");
+            slot.innerHTML = `
+              <img class="poke-img back" src="${CARD_BACK}" alt="Pokémon back">
+              <img class="poke-img front" src="${card.image}" alt="${card.name}">
+            `;
+            let flipTimer, revertTimer;
+            slot.addEventListener("mouseenter", () => {
+              flipTimer = setTimeout(()=>{
+                slot.setAttribute("data-state","front");
+              }, 800);
+              if(revertTimer) { clearTimeout(revertTimer); revertTimer = null; }
+            });
+            slot.addEventListener("mouseleave", () => {
+              clearTimeout(flipTimer);
+              revertTimer = setTimeout(()=>{
+                slot.setAttribute("data-state","back");
+              }, 3000);
+            });
+
             const label = document.createElement("div");
             label.className = "card-name";
             label.textContent = card.name;
