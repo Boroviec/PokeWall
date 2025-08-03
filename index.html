@@ -68,19 +68,27 @@
   <script>
     // Settings
     const CARDS_PER_SLAB = 6;
-    const CARD_BACK = "img/card-back.png"; // use your own card back image
+    const CARD_BACK = "img/card-back.png"; // Ustaw tu swoją grafikę tła (może być z internetu)
 
     // Load data
     fetch("pokedex.json")
       .then(res => res.json())
-      .then(all => {
-        // Group cards in slabs (rows)
+      .then(data => {
+        // Spłaszcz wszystkie rodziny ewolucyjne do jednej tablicy kart:
+        const all = data.evolution_families.flatMap(family =>
+          family.chain.map(card => ({
+            ...card,
+            familyName: family.familyName
+          }))
+        );
+
+        // Buduj wall tak jak wcześniej:
         let wallDiv = document.getElementById("wall");
         wallDiv.innerHTML = "";
-        for (let i=0; i<all.length; i+=CARDS_PER_SLAB) {
+        for (let i = 0; i < all.length; i += CARDS_PER_SLAB) {
           let slab = document.createElement("div");
           slab.className = "slab";
-          all.slice(i, i+CARDS_PER_SLAB).forEach(card => {
+          all.slice(i, i + CARDS_PER_SLAB).forEach(card => {
             const slot = document.createElement("div");
             slot.className = "card-slot";
             // Card for OWNED
@@ -94,7 +102,7 @@
               slot.setAttribute("data-state", "back");
               slot.innerHTML = `
                 <img class="poke-img back" src="${CARD_BACK}" alt="Pokémon back">
-                <img class="poke-img front" src="img/${String(card.number).padStart(3,"0")}_${card.name.toLowerCase().replace(/[^a-z0-9]/g,'')}.png" alt="${card.name}">
+                <img class="poke-img front" src="${card.image}" alt="${card.name}">
               `;
               let flipTimer, revertTimer;
               slot.addEventListener("mouseenter", () => {
