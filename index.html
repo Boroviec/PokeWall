@@ -68,16 +68,14 @@
   <script>
     // Settings
     const CARDS_PER_SLAB = 6;
-    const CARD_BACK = "img/card-back.png"; // Zmień na swój obrazek rewersu
+    const CARD_BACK = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Card_back_06.svg/512px-Card_back_06.svg.png"; // lub wrzuć swój plik
 
-    // Load data
     fetch("pokedex.json")
       .then(res => res.json())
       .then(data => {
-        // Rozwijamy wszystkie łańcuchy ewolucji do płaskiej listy
+        // Spłaszcz wszystkie łańcuchy ewolucji do listy kart
         const all = data.evolution_families.flatMap(fam => fam.chain);
 
-        // Group cards in slabs (rows)
         let wallDiv = document.getElementById("wall");
         wallDiv.innerHTML = "";
         for (let i=0; i<all.length; i+=CARDS_PER_SLAB) {
@@ -86,8 +84,6 @@
           all.slice(i, i+CARDS_PER_SLAB).forEach(card => {
             const slot = document.createElement("div");
             slot.className = "card-slot";
-            
-            // PRZYKŁADOWA LOGIKA: pokaż tylko rewers, a po hoverze (800ms) front (obrazek z jsona)
             slot.setAttribute("data-state", "back");
             slot.innerHTML = `
               <img class="poke-img back" src="${CARD_BACK}" alt="Pokémon back">
