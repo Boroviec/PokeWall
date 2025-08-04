@@ -1,122 +1,287 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>PokeWall – Collection</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PokeWall – 151 Pokémon TCG cards</title>
   <style>
-    .slab {
-      background: #111;
-      border-radius: 0.75rem;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.22);
-      padding: 1.5rem;
-      margin-bottom: 2rem;
+    :root {
+      /* sizing */
+      --card-w: 120px;
+      --card-h: 160px;
+      --gap: 16px;
+
+      /* motion  */
+      --fade-dur: 0.9s; /* slowed down 2× */
+      --ease: cubic-bezier(.25, .46, .45, .94); /* subtly easing in & out */
+
+      /* assets  */
+      --back-img: url('https://images.pokemontcg.io/base1/back.png');
+    }
+
+    html, body {
+      margin: 0;
+      background: #f8f8f8;
+      font-family: Arial, sans-serif;
+    }
+
+    h1 {
+      margin: 0;
+      padding: 24px 0;
+      text-align: center;
+      font-size: 2.5rem;
+      letter-spacing: 1px;
+    }
+
+    /* ──────────────────────────────────
+       WALL CONTAINER
+    ────────────────────────────────── */
+    #wall {
       display: flex;
-      gap: 1.5rem;
       flex-wrap: wrap;
+      gap: var(--gap);
+      padding: var(--gap);
       justify-content: center;
     }
-    .card-slot {
-      width: 120px;
-      aspect-ratio: 3/4;
+
+    /* ──────────────────────────────────
+       BLACK FAMILY SLAB
+    ────────────────────────────────── */
+    .family-block {
+      background: #000;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      padding: 24px;
+      display: grid;
+      gap: var(--gap);
+    }
+
+    /* ──────────────────────────────────
+       INDIVIDUAL CARD
+    ────────────────────────────────── */
+    .pokemon-card {
       position: relative;
-      border-radius: 0.7rem;
+      width: var(--card-w);
+      height: var(--card-h);
       overflow: hidden;
-      background: #232323;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: box-shadow .2s;
-      margin-bottom: 0.5rem;
+      border-radius: 8px;
+      will-change: transform;
+      transition: transform 0.6s var(--ease); /* slowed down 2× */
+      cursor: pointer; /* hint that card can be clicked */
     }
-    .card-slot:focus {
-      outline: 2px solid #FFD700;
-      z-index: 1;
+
+    /* grayscale card‑back as a fading layer */
+    .pokemon-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: var(--back-img);
+      background-size: cover;
+      background-position: center;
+      filter: saturate(0);
+      opacity: 1;
+      transition: opacity var(--fade-dur) var(--ease);
+      pointer-events: none;
     }
-    .poke-img {
+
+    /* front image placeholder (now grayscale) */
+    .pokemon-card img {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      position: absolute;
-      top: 0; left: 0;
-      border-radius: 0.7rem;
-      border: 3px solid #111;
-      transition: opacity 1.2s cubic-bezier(.23,.62,.47,1.27);
+      object-fit: contain;
+      opacity: 0;
+      filter: saturate(0); /* keep front image desaturated */
+      transition: opacity var(--fade-dur) var(--ease) 120ms;
+      pointer-events: none;
     }
-    .poke-img.back { filter: grayscale(0.9) brightness(0.95); opacity: 1; }
-    .poke-img.front { opacity: 0; }
-    .card-slot[data-state="front"] .poke-img.front { opacity: 1; }
-    .card-slot[data-state="front"] .poke-img.back { opacity: 0; }
-    .card-name {
-      color: #fff;
-      text-align: center;
-      margin-top: 2px;
-      font-weight: 500;
-      font-size: 1.1rem;
-      text-shadow: 0 1px 4px #000c;
-      letter-spacing: .03em;
+
+    /* ──────────────────────────────────
+       HOVER INTERACTION
+    ────────────────────────────────── */
+    .pokemon-card:hover {
+      transform: translateY(-4px) scale(1.015);
     }
-    body { background: #fff; }
+    .pokemon-card:hover::before {
+      opacity: 0;   /* fade grayscale back away */
+    }
+    .pokemon-card:hover img {
+      opacity: 1;   /* fade front in (still grayscale) */
+    }
+
+    /* ──────────────────────────────────
+       SIMPLE TOAST FOR FEEDBACK
+    ────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      color:#fff;
+      padding: 8px 16px;
+      border-radius: 24px;
+      font-size: 0.9rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s var(--ease);
+    }
+    #toast.show { opacity: 1; }
   </style>
 </head>
-<body class="min-h-screen">
-  <h1 class="text-4xl font-bold text-center text-gray-800 mb-6 mt-3">PokeWall</h1>
-  <div id="wall" class="flex flex-col items-center"></div>
+<body>
+  <h1>PokeWall</h1>
+  <div id="wall">Loading…</div>
+
+  <!-- hidden uploader shared by all cards -->
+  <input type="file" id="uploader" accept="image/*" style="display:none" />
+  <div id="toast"></div>
+
   <script>
-    // Settings
-    const CARDS_PER_SLAB = 6;
-    const CARD_BACK = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Card_back_06.svg/512px-Card_back_06.svg.png"; // lub wrzuć swój plik
+    /* ---------------------------------------------------------
+       Configuration
+    --------------------------------------------------------- */
+    const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
+    const GID      = '0'; // first sheet
+    const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
-    fetch("pokedex.json")
-      .then(res => res.json())
-      .then(data => {
-        // Spłaszcz wszystkie łańcuchy ewolucji do listy kart
-        const all = data.evolution_families.flatMap(fam => fam.chain);
+    /* ---------------------------------------------------------
+       Utility: very small CSV parser (no quotes in data)
+    --------------------------------------------------------- */
+    function parseCSV(text) {
+      return text.trim().split(/[\r?\n]+/).map(line => line.split(','));
+    }
 
-        let wallDiv = document.getElementById("wall");
-        wallDiv.innerHTML = "";
-        for (let i=0; i<all.length; i+=CARDS_PER_SLAB) {
-          let slab = document.createElement("div");
-          slab.className = "slab";
-          all.slice(i, i+CARDS_PER_SLAB).forEach(card => {
-            const slot = document.createElement("div");
-            slot.className = "card-slot";
-            slot.setAttribute("data-state", "back");
-            slot.innerHTML = `
-              <img class="poke-img back" src="${CARD_BACK}" alt="Pokémon back">
-              <img class="poke-img front" src="${card.image}" alt="${card.name}">
-            `;
-            let flipTimer, revertTimer;
-            slot.addEventListener("mouseenter", () => {
-              flipTimer = setTimeout(()=>{
-                slot.setAttribute("data-state","front");
-              }, 800);
-              if(revertTimer) { clearTimeout(revertTimer); revertTimer = null; }
-            });
-            slot.addEventListener("mouseleave", () => {
-              clearTimeout(flipTimer);
-              revertTimer = setTimeout(()=>{
-                slot.setAttribute("data-state","back");
-              }, 3000);
-            });
+    /* ---------------------------------------------------------
+       Toast helper (tiny feedback popup)
+    --------------------------------------------------------- */
+    const toast = (msg, dur = 1800) => {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._tm);
+      t._tm = setTimeout(() => t.classList.remove('show'), dur);
+    };
 
-            const label = document.createElement("div");
-            label.className = "card-name";
-            label.textContent = card.name;
-            let wrap = document.createElement("div");
-            wrap.style.display = "flex";
-            wrap.style.flexDirection = "column";
-            wrap.style.alignItems = "center";
-            wrap.appendChild(slot);
-            wrap.appendChild(label);
-            slab.appendChild(wrap);
-          });
-          wallDiv.appendChild(slab);
+    /* ---------------------------------------------------------
+       Main build routine
+    --------------------------------------------------------- */
+    async function buildWall() {
+      const wall = document.getElementById('wall');
+      try {
+        const csvText = await fetch(CSV_URL).then(r => r.text());
+        const rows = parseCSV(csvText);
+
+        /* locate relevant columns by header name */
+        const header        = rows[0];
+        const colNo         = header.indexOf('No.');
+        const colGroup      = header.indexOf('Group');
+        const colCardLink   = header.indexOf('Link to the Card');
+        if (colNo === -1 || colGroup === -1 || colCardLink === -1) {
+          throw new Error('Required columns not found in the sheet');
         }
+
+        /* group rows by evolution family */
+        const families = {};
+        const order    = [];
+
+        rows.slice(1).forEach(r => {
+          const id    = parseInt(r[colNo], 10);
+          if (!id || id > 151) return; // ignore blanks & rows beyond 151
+          const group = r[colGroup].trim();
+          const url   = r[colCardLink].trim();
+          if (!families[group]) { families[group] = []; order.push(group); }
+          families[group].push({ id, url });
+        });
+
+        /* load any user‑saved custom images from localStorage */
+        const customImgs = JSON.parse(localStorage.getItem('customCards') || '{}');
+
+        /* render slabs in numeric group order */
+        wall.textContent = '';
+        order.sort((a,b)=>a-b).forEach(group => {
+          const slab = document.createElement('div');
+          slab.className = 'family-block';
+          const cards = families[group];
+          const cols  = Math.min(cards.length, 9);
+          slab.style.gridTemplateColumns = `repeat(${cols}, var(--card-w))`;
+
+          cards.sort((a,b)=>a.id-b.id).forEach(({ id, url }) => {
+            const card  = document.createElement('div');
+            card.className = 'pokemon-card';
+            card.dataset.id = id;
+            const img   = document.createElement('img');
+            img.src     = customImgs[id] || url;
+            img.alt     = '';
+            card.appendChild(img);
+            slab.appendChild(card);
+          });
+          wall.appendChild(slab);
+        });
+
+        enableUploads();
+      } catch (err) {
+        wall.textContent = 'Failed to load data.';
+        console.error(err);
+      }
+    }
+
+    /* ---------------------------------------------------------
+       Upload logic – lets the user replace any card image
+    --------------------------------------------------------- */
+    function enableUploads() {
+      const uploader = document.getElementById('uploader');
+      let currentCardEl = null;
+
+      // 1. when a card is clicked, remember it & open file picker
+      document.querySelectorAll('.pokemon-card').forEach(card => {
+        card.addEventListener('click', () => {
+          currentCardEl = card;
+          uploader.value = '';// reset so change event fires even if re‑selecting same file
+          uploader.click();
+        });
       });
+
+      // 2. when user selects an image, read it & update card + persist
+      uploader.addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0];
+        if (!file || !currentCardEl) return;
+        if (!file.type.startsWith('image/')) {
+          toast('Please choose an image file.');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const dataUrl = ev.target.result;
+          const imgEl = currentCardEl.querySelector('img');
+          imgEl.src = dataUrl;
+
+          // persist in localStorage keyed by Pokédex number
+          const id = currentCardEl.dataset.id;
+          const store = JSON.parse(localStorage.getItem('customCards') || '{}');
+          store[id] = dataUrl;
+          try {
+            localStorage.setItem('customCards', JSON.stringify(store));
+            toast('Custom card saved!');
+          } catch(err) {
+            console.warn('LocalStorage full?', err);
+            toast('Unable to save permanently, but card replaced.');
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /* ---------------------------------------------------------
+       init
+    --------------------------------------------------------- */
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', buildWall);
+    } else {
+      buildWall();
+    }
   </script>
 </body>
 </html>
