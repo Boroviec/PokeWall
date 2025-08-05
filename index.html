@@ -1,21 +1,16 @@
-!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang='en'>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset='UTF-8' />
+  <meta name='viewport' content='width=device-width, initial-scale=1.0' />
   <title>PokeWall – 151 Pokémon TCG cards</title>
   <style>
     :root {
-      /* sizing */
       --card-w: 120px;
       --card-h: 160px;
       --gap: 16px;
-
-      /* motion  */
-      --fade-dur: 0.9s; /* slowed down 2× */
-      --ease: cubic-bezier(.25, .46, .45, .94); /* subtly easing in & out */
-
-      /* assets  */
+      --fade-dur: 0.9s;
+      --ease: cubic-bezier(.25, .46, .45, .94);
       --back-img: url('https://images.pokemontcg.io/base1/back.png');
     }
 
@@ -23,6 +18,7 @@
       margin: 0;
       background: #f8f8f8;
       font-family: Arial, sans-serif;
+      scroll-behavior: smooth;
     }
 
     h1 {
@@ -33,9 +29,6 @@
       letter-spacing: 1px;
     }
 
-    /* ──────────────────────────────────
-       WALL CONTAINER
-    ────────────────────────────────── */
     #wall {
       display: flex;
       flex-wrap: wrap;
@@ -44,21 +37,15 @@
       justify-content: center;
     }
 
-    /* ──────────────────────────────────
-       BLACK FAMILY SLAB
-    ────────────────────────────────── */
     .family-block {
       background: #000;
       border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
       padding: 24px;
       display: grid;
       gap: var(--gap);
     }
 
-    /* ──────────────────────────────────
-       INDIVIDUAL CARD
-    ────────────────────────────────── */
     .pokemon-card {
       position: relative;
       width: var(--card-w);
@@ -66,13 +53,12 @@
       overflow: hidden;
       border-radius: 8px;
       will-change: transform;
-      transition: transform 0.6s var(--ease); /* slowed down 2× */
-      cursor: pointer; /* hint that card can be clicked */
+      transition: transform 0.6s var(--ease);
+      cursor: pointer;
     }
 
-    /* grayscale card‑back as a fading layer */
     .pokemon-card::before {
-      content: "";
+      content: '';
       position: absolute;
       inset: 0;
       background-image: var(--back-img);
@@ -84,7 +70,6 @@
       pointer-events: none;
     }
 
-    /* front image placeholder (now grayscale) */
     .pokemon-card img {
       position: absolute;
       inset: 0;
@@ -92,70 +77,140 @@
       height: 100%;
       object-fit: contain;
       opacity: 0;
-      filter: saturate(0); /* keep front image desaturated */
-      transition: opacity var(--fade-dur) var(--ease) 120ms;
+      filter: saturate(0);
+      transition: opacity var(--fade-dur) var(--ease) 120ms, filter var(--fade-dur) var(--ease);
       pointer-events: none;
     }
 
-    /* ──────────────────────────────────
-       HOVER INTERACTION
-    ────────────────────────────────── */
+    .pokemon-card.custom::before {
+      opacity: 0;
+    }
+    .pokemon-card.custom img {
+      opacity: 1;
+      filter: saturate(1);
+    }
+
     .pokemon-card:hover {
       transform: translateY(-4px) scale(1.015);
     }
     .pokemon-card:hover::before {
-      opacity: 0;   /* fade grayscale back away */
+      opacity: 0;
     }
     .pokemon-card:hover img {
-      opacity: 1;   /* fade front in (still grayscale) */
+      opacity: 1;
     }
 
-    /* ──────────────────────────────────
-       SIMPLE TOAST FOR FEEDBACK
-    ────────────────────────────────── */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s var(--ease);
+      z-index: 999;
+    }
+    #overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .overlay-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #overlay img {
+      width: min(80vw, 380px);
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+      filter: saturate(0);
+      transform: scale(0.6) translateY(0);
+      transition: transform 0.45s var(--ease), filter var(--fade-dur) var(--ease);
+    }
+    #overlay.show img {
+      transform: scale(1) translateY(0);
+      animation: float 6s ease-in-out infinite;
+    }
+    #overlay img.custom {
+      filter: saturate(1);
+    }
+
+    @keyframes float {
+      0%, 100% { transform: scale(1) translateY(0); }
+      50%      { transform: scale(1) translateY(-8px); }
+    }
+
+    #upload-btn, #remove-btn {
+      background: linear-gradient(135deg, #ffde00 0%, #fa6900 100%);
+      border: none;
+      border-radius: 30px;
+      padding: 10px 28px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+    }
+    #upload-btn:hover, #remove-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+    }
+
     #toast {
       position: fixed;
       bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0,0,0,0.8);
-      color:#fff;
+      color: #fff;
       padding: 8px 16px;
       border-radius: 24px;
       font-size: 0.9rem;
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.4s var(--ease);
+      z-index: 1000;
     }
     #toast.show { opacity: 1; }
   </style>
 </head>
 <body>
   <h1>PokeWall</h1>
-  <div id="wall">Loading…</div>
+  <div id='wall'>Loading…</div>
 
-  <!-- hidden uploader shared by all cards -->
-  <input type="file" id="uploader" accept="image/*" style="display:none" />
-  <div id="toast"></div>
+  <div id='overlay'>
+    <div class='overlay-content'>
+      <img alt='card enlarged' />
+      <button id='upload-btn'>Upload</button>
+      <button id='remove-btn'>Remove</button>
+    </div>
+  </div>
+
+  <input type='file' id='uploader' accept='image/*' style='display:none' />
+  <div id='toast'></div>
+
+  <script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
 
   <script>
-    /* ---------------------------------------------------------
-       Configuration
-    --------------------------------------------------------- */
     const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
-    const GID      = '0'; // first sheet
+    const GID      = '0';
     const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
-    /* ---------------------------------------------------------
-       Utility: very small CSV parser (no quotes in data)
-    --------------------------------------------------------- */
-    function parseCSV(text) {
-      return text.trim().split(/[\r?\n]+/).map(line => line.split(','));
-    }
+    const parseCSV = (text) => {
+      const rows = text.trim().split(/\r?\n/).map(line => {
+        const cells = line.split(/,(?=(?:[^\\"]*\\"[^\\"]*\\")*[^\\"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
+        return cells;
+      });
+      return rows;
+    };
 
-    /* ---------------------------------------------------------
-       Toast helper (tiny feedback popup)
-    --------------------------------------------------------- */
     const toast = (msg, dur = 1800) => {
       const t = document.getElementById('toast');
       t.textContent = msg;
@@ -164,41 +219,30 @@
       t._tm = setTimeout(() => t.classList.remove('show'), dur);
     };
 
-    /* ---------------------------------------------------------
-       Main build routine
-    --------------------------------------------------------- */
     async function buildWall() {
       const wall = document.getElementById('wall');
       try {
         const csvText = await fetch(CSV_URL).then(r => r.text());
-        const rows = parseCSV(csvText);
+        const rows    = parseCSV(csvText);
+        const header      = rows[0].map(h => h.trim());
+        const colNo       = header.indexOf('No.');
+        const colGroup    = header.indexOf('Group');
+        const colCardLink = header.indexOf('Link to the Card');
+        if (colNo === -1 || colGroup === -1 || colCardLink === -1) throw new Error('Required columns not found');
 
-        /* locate relevant columns by header name */
-        const header        = rows[0];
-        const colNo         = header.indexOf('No.');
-        const colGroup      = header.indexOf('Group');
-        const colCardLink   = header.indexOf('Link to the Card');
-        if (colNo === -1 || colGroup === -1 || colCardLink === -1) {
-          throw new Error('Required columns not found in the sheet');
-        }
-
-        /* group rows by evolution family */
         const families = {};
         const order    = [];
-
         rows.slice(1).forEach(r => {
-          const id    = parseInt(r[colNo], 10);
-          if (!id || id > 151) return; // ignore blanks & rows beyond 151
+          const id = parseInt(r[colNo], 10);
+          if (!id || id > 151) return;
           const group = r[colGroup].trim();
           const url   = r[colCardLink].trim();
           if (!families[group]) { families[group] = []; order.push(group); }
           families[group].push({ id, url });
         });
 
-        /* load any user‑saved custom images from localStorage */
         const customImgs = JSON.parse(localStorage.getItem('customCards') || '{}');
 
-        /* render slabs in numeric group order */
         wall.textContent = '';
         order.sort((a,b)=>a-b).forEach(group => {
           const slab = document.createElement('div');
@@ -208,42 +252,71 @@
           slab.style.gridTemplateColumns = `repeat(${cols}, var(--card-w))`;
 
           cards.sort((a,b)=>a.id-b.id).forEach(({ id, url }) => {
-            const card  = document.createElement('div');
+            const card = document.createElement('div');
             card.className = 'pokemon-card';
             card.dataset.id = id;
-            const img   = document.createElement('img');
-            img.src     = customImgs[id] || url;
-            img.alt     = '';
+            const img = document.createElement('img');
+            img.src = customImgs[id] || url;
             card.appendChild(img);
+            if (customImgs[id]) card.classList.add('custom');
             slab.appendChild(card);
           });
           wall.appendChild(slab);
         });
 
-        enableUploads();
-      } catch (err) {
+        enableInteractions();
+      } catch(err) {
         wall.textContent = 'Failed to load data.';
         console.error(err);
       }
     }
 
-    /* ---------------------------------------------------------
-       Upload logic – lets the user replace any card image
-    --------------------------------------------------------- */
-    function enableUploads() {
+    function enableInteractions() {
       const uploader = document.getElementById('uploader');
+      const overlay  = document.getElementById('overlay');
+      const overlayImg = overlay.querySelector('img');
+      const uploadBtn = document.getElementById('upload-btn');
+      const removeBtn = document.getElementById('remove-btn');
       let currentCardEl = null;
 
-      // 1. when a card is clicked, remember it & open file picker
       document.querySelectorAll('.pokemon-card').forEach(card => {
-        card.addEventListener('click', () => {
+        card.addEventListener('click', (e) => {
           currentCardEl = card;
-          uploader.value = '';// reset so change event fires even if re‑selecting same file
-          uploader.click();
+          if (e.altKey) {
+            uploader.value = '';
+            uploader.click();
+            return;
+          }
+          overlayImg.src = card.querySelector('img').src;
+          const hasCustom = card.classList.contains('custom');
+          uploadBtn.style.display = hasCustom ? 'none' : 'block';
+          removeBtn.style.display = hasCustom ? 'block' : 'none';
+          overlayImg.classList.toggle('custom', hasCustom);
+          overlay.classList.add('show');
         });
       });
 
-      // 2. when user selects an image, read it & update card + persist
+      uploadBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!currentCardEl) return;
+        uploader.value = '';
+        uploader.click();
+      });
+
+      removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!currentCardEl) return;
+        const id = currentCardEl.dataset.id;
+        const store = JSON.parse(localStorage.getItem('customCards') || '{}');
+        delete store[id];
+        localStorage.setItem('customCards', JSON.stringify(store));
+        currentCardEl.classList.remove('custom');
+        currentCardEl.querySelector('img').src = '';
+        buildWall();
+        overlay.classList.remove('show');
+        toast('Custom image removed.');
+      });
+
       uploader.addEventListener('change', e => {
         const file = e.target.files && e.target.files[0];
         if (!file || !currentCardEl) return;
@@ -251,32 +324,45 @@
           toast('Please choose an image file.');
           return;
         }
-
         const reader = new FileReader();
-        reader.onload = ev => {
-          const dataUrl = ev.target.result;
+        reader.onload = () => {
+          const dataURL = reader.result;
           const imgEl = currentCardEl.querySelector('img');
-          imgEl.src = dataUrl;
-
-          // persist in localStorage keyed by Pokédex number
+          imgEl.src = dataURL;
           const id = currentCardEl.dataset.id;
           const store = JSON.parse(localStorage.getItem('customCards') || '{}');
-          store[id] = dataUrl;
+          store[id] = dataURL;
           try {
             localStorage.setItem('customCards', JSON.stringify(store));
-            toast('Custom card saved!');
           } catch(err) {
-            console.warn('LocalStorage full?', err);
-            toast('Unable to save permanently, but card replaced.');
+            if (err && err.name === 'QuotaExceededError') {
+              toast('Storage full, clearing old custom cards…');
+              localStorage.removeItem('customCards');
+              localStorage.setItem('customCards', JSON.stringify({ [id]: dataURL }));
+            } else {
+              console.error(err);
+              toast('Failed to save image.');
+              return;
+            }
+          }
+          currentCardEl.classList.add('custom');
+          uploadBtn.style.display = 'none';
+          removeBtn.style.display = 'block';
+          overlayImg.src = dataURL;
+          overlayImg.classList.add('custom');
+          toast('Saved locally!');
+          if (typeof confetti === 'function') {
+            confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
           }
         };
         reader.readAsDataURL(file);
       });
+
+      const hideOverlay = () => overlay.classList.remove('show');
+      overlay.addEventListener('click', hideOverlay);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideOverlay(); });
     }
 
-    /* ---------------------------------------------------------
-       init
-    --------------------------------------------------------- */
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', buildWall);
     } else {
