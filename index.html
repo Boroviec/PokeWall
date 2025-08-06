@@ -284,6 +284,58 @@ console.error(err);
 }
 }
 
+// --- Add this function somewhere in your script, for example before enableInteractions() is called.
+async function uploadImageToGitHub(file, cardId) {
+    if (!window.token) {
+        throw new Error('GitHub token not available.');
+    }
+    // These variables can be set from the console or elsewhere so you don't hardcode them:
+    const owner = window.githubOwner; // e.g. 'boroviec'
+    const repo  = window.githubRepo;  // e.g. 'PokeWall'
+  
+    // Create an Octokit instance using your already-set token
+    const octokit = new Octokit({ auth: window.token });
+  
+    // Define the file path in the repo for this card image.
+    const imagePath = `img/custom/${cardId}.png`;
+  
+    // Convert the file to a base64 string.
+    const base64Content = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]); // Remove the data URL prefix
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  
+    // Check if the file already exists, so we can update it.
+    let sha;
+    try {
+      const { data } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: imagePath
+      });
+      sha = data.sha;
+    } catch (error) {
+      // File doesn't exist; we'll create it.
+    }
+  
+    // Create or update the file on GitHub.
+    const response = await octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: imagePath,
+      message: `Upload custom card image for card ${cardId}`,
+      content: base64Content,
+      sha,
+      committer: { name: 'Your Name', email: 'you@example.com' },
+      author: { name: 'Your Name', email: 'you@example.com' }
+    });
+  
+    // Return the URL to the file in the GitHub repo.
+    return response.data.content.download_url;
+}
+
 function enableInteractions() {
 const uploader = document.getElementById('uploader');
 const overlay  = document.getElementById('overlay');
@@ -333,46 +385,57 @@ toast('Custom image removed.');
 });
 
 uploader.addEventListener('change', e => {
-const file = e.target.files && e.target.files[0];
-if (!file || !currentCardEl) return;
-if (!file.type.startsWith('image/')) {
-toast('Please choose an image file.');
-return;
-}
-const reader = new FileReader();
-reader.onload = () => {
-const dataURL = reader.result;
-const imgEl = currentCardEl.querySelector('img');
-imgEl.src = dataURL;
-const id = currentCardEl.dataset.id;
-const store = JSON.parse(localStorage.getItem('customCards') || '{}');
-          store[id] = dataURL;
-          //store[id] = dataURL;
-try {
-            localStorage.setItem('customCards', JSON.stringify(store));
-            //localStorage.setItem('customCards', JSON.stringify(store));
-} catch(err) {
-if (err && err.name === 'QuotaExceededError') {
-toast('Storage full, clearing old custom cards…');
-localStorage.removeItem('customCards');
-localStorage.setItem('customCards', JSON.stringify({ [id]: dataURL }));
-} else {
-console.error(err);
-toast('Failed to save image.');
-return;
-}
-}
-currentCardEl.classList.add('custom');
-uploadBtn.style.display = 'none';
-removeBtn.style.display = 'block';
-overlayImg.src = dataURL;
-overlayImg.classList.add('custom');
-toast('Saved locally!');
-if (typeof confetti === 'function') {
-confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
-}
-};
-reader.readAsDataURL(file);
+  const file = e.target.files && e.target.files[0];
+  if (!file || !currentCardEl) return;
+  if (!file.type.startsWith('image/')) {
+    toast('Please choose an image file.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const dataURL = reader.result;
+    const imgEl = currentCardEl.querySelector('img');
+    imgEl.src = dataURL;
+    const cardId = currentCardEl.dataset.id;
+    
+    // Save locally in localStorage if desired (optional)
+    const store = JSON.parse(localStorage.getItem('customCards') || '{}');
+    store[cardId] = dataURL;
+    try {
+      localStorage.setItem('customCards', JSON.stringify(store));
+    } catch(err) {
+      if (err && err.name === 'QuotaExceededError') {
+        toast('Storage full, clearing old custom cards…');
+        localStorage.removeItem('customCards');
+        localStorage.setItem('customCards', JSON.stringify({ [cardId]: dataURL }));
+      } else {
+        console.error(err);
+        toast('Failed to save image.');
+        return;
+      }
+    }
+    currentCardEl.classList.add('custom');
+    uploadBtn.style.display = 'none';
+    removeBtn.style.display = 'block';
+    overlayImg.src = dataURL;
+    overlayImg.classList.add('custom');
+    toast('Saved locally!');
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
+    }
+    
+    // Now upload the image to GitHub.
+    try {
+      const gitHubImgUrl = await uploadImageToGitHub(file, cardId);
+      // Update the card image to the URL served from GitHub.
+      imgEl.src = gitHubImgUrl;
+      toast('Uploaded to GitHub!');
+    } catch (err) {
+      console.error(err);
+      toast('GitHub upload failed.');
+    }
+  };
+  reader.readAsDataURL(file);
 });
 
 const hideOverlay = () => overlay.classList.remove('show');
