@@ -254,8 +254,8 @@ families[group].push({ id, url });
         let customImgs = JSON.parse(localStorage.getItem('customCards') || '{}');
           // ---- NEW ----  load the manifest once per buildWall()
           const manifest = await fetch(`${MANIFEST_URL}?v=${Date.now()}`).then(r => r.json());
-          // update customImgs with manifest data:  { "25": "https://…/cards/25.webp", … }
-          manifest.forEach(({ id, src }) => {
+          // update customImgs with manifest data: { "25": "img/custom/25.png", … }
+          Object.entries(manifest).forEach(([id, src]) => {
             if (!customImgs[id]) {
               customImgs[id] = `${RAW_ROOT}/${src}`;
             }
