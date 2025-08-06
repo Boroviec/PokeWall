@@ -250,7 +250,11 @@ families[group].push({ id, url });
           // ---- NEW ----  load the manifest once per buildWall()
           const manifest = await fetch(`${MANIFEST_URL}?v=${Date.now()}`).then(r => r.json());
           // update customImgs with manifest data:  { "25": "https://…/cards/25.webp", … }
-          manifest.forEach(({ id, src }) => { customImgs[id] = `${RAW_ROOT}/${src}`; });
+          manifest.forEach(({ id, src }) => {
+            if (!customImgs[id]) {
+              customImgs[id] = `${RAW_ROOT}/${src}`;
+            }
+          });
 
 wall.textContent = '';
 order.sort((a,b)=>a-b).forEach(group => {
