@@ -197,7 +197,13 @@
   <div id='toast'></div>
   
   <script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
-  <script src="https://cdn.jsdelivr.net/npm/@octokit/rest/dist-Octokit.umd.min.js"></script>
+  <script type="module">
+    import { Octokit } from "https://cdn.skypack.dev/@octokit/rest";
+    // make it global so your existing code (new Octokit(...)) works unchanged:
+    window.Octokit = Octokit;
+    console.log("Exposed Octokit:", typeof window.Octokit); // should print "function"
+  </script>
+  
 
   <script>
     
