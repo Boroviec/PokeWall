@@ -195,13 +195,17 @@
 
   <input type='file' id='uploader' accept='image/*' style='display:none' />
   <div id='toast'></div>
-
+  
   <script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
+  <script src="https://cdn.jsdelivr.net/npm/@octokit/rest/dist/octokit.umd.min.js"></script>
 
   <script>
+    
     const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
     const GID      = '0';
     const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+    const RAW_ROOT      = "https://raw.githubusercontent.com/boroviec/PokeWall/main";
+    const MANIFEST_URL  = `${RAW_ROOT}/data/cards.json`;
 
     const parseCSV = (text) => {
       const rows = text.trim().split(/\r?\n/).map(line => {
@@ -241,7 +245,11 @@
           families[group].push({ id, url });
         });
 
-        const customImgs = JSON.parse(localStorage.getItem('customCards') || '{}');
+          // ---- NEW ----  load the manifest once per buildWall()
+          const manifest = await fetch(`${MANIFEST_URL}?v=${Date.now()}`).then(r => r.json());
+          // turn it into a quick lookup table:  { "25": "https://…/cards/25.webp", … }
+          const customImgs = {};
+          manifest.forEach(({ id, src }) => { customImgs[id] = `${RAW_ROOT}/${src}`; });
 
         wall.textContent = '';
         order.sort((a,b)=>a-b).forEach(group => {
@@ -308,8 +316,8 @@
         if (!currentCardEl) return;
         const id = currentCardEl.dataset.id;
         const store = JSON.parse(localStorage.getItem('customCards') || '{}');
-        delete store[id];
-        localStorage.setItem('customCards', JSON.stringify(store));
+        //delete store[id];
+        //localStorage.setItem('customCards', JSON.stringify(store));
         currentCardEl.classList.remove('custom');
         currentCardEl.querySelector('img').src = '';
         buildWall();
@@ -331,9 +339,9 @@
           imgEl.src = dataURL;
           const id = currentCardEl.dataset.id;
           const store = JSON.parse(localStorage.getItem('customCards') || '{}');
-          store[id] = dataURL;
+          //store[id] = dataURL;
           try {
-            localStorage.setItem('customCards', JSON.stringify(store));
+            //localStorage.setItem('customCards', JSON.stringify(store));
           } catch(err) {
             if (err && err.name === 'QuotaExceededError') {
               toast('Storage full, clearing old custom cards…');
