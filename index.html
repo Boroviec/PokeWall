@@ -11,7 +11,7 @@
       --gap: 16px;
       --fade-dur: 0.9s;
       --ease: cubic-bezier(.25, .46, .45, .94);
-      --back-img: url('https://images.pokemontcg.io/base1/back.png');
+      --back-img: url('https://raw.githubusercontent.com/PokemonTCG/pokemon-tcg-data/master/icons/pokemon/card-back.svg');
     }
 
     html, body {
@@ -312,59 +312,103 @@
       });
 
       removeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (!currentCardEl) return;
-        const id = currentCardEl.dataset.id;
-        const store = JSON.parse(localStorage.getItem('customCards') || '{}');
-        //delete store[id];
-        //localStorage.setItem('customCards', JSON.stringify(store));
-        currentCardEl.classList.remove('custom');
-        currentCardEl.querySelector('img').src = '';
-        buildWall();
-        overlay.classList.remove('show');
-        toast('Custom image removed.');
-      });
+  e.stopPropagation();
+  if (!currentCardEl) return;
 
-      uploader.addEventListener('change', e => {
-        const file = e.target.files && e.target.files[0];
-        if (!file || !currentCardEl) return;
-        if (!file.type.startsWith('image/')) {
-          toast('Please choose an image file.');
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataURL = reader.result;
-          const imgEl = currentCardEl.querySelector('img');
-          imgEl.src = dataURL;
-          const id = currentCardEl.dataset.id;
-          const store = JSON.parse(localStorage.getItem('customCards') || '{}');
-          //store[id] = dataURL;
-          try {
-            //localStorage.setItem('customCards', JSON.stringify(store));
-          } catch(err) {
-            if (err && err.name === 'QuotaExceededError') {
-              toast('Storage full, clearing old custom cards…');
-              localStorage.removeItem('customCards');
-              localStorage.setItem('customCards', JSON.stringify({ [id]: dataURL }));
-            } else {
-              console.error(err);
-              toast('Failed to save image.');
-              return;
-            }
-          }
-          currentCardEl.classList.add('custom');
-          uploadBtn.style.display = 'none';
-          removeBtn.style.display = 'block';
-          overlayImg.src = dataURL;
-          overlayImg.classList.add('custom');
-          toast('Saved locally!');
-          if (typeof confetti === 'function') {
-            confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+  // purely UI changes now:
+  currentCardEl.classList.remove('custom');
+  currentCardEl.querySelector('img').src = '';
+  buildWall();
+  overlay.classList.remove('show');
+  toast('Custom image removed.');
+});
+
+      /* ----------  OWNER-SIDE GITHUB HELPERS  ---------- */
+const pwToken = localStorage.getItem("pw_token");             // put your PAT in LS once
+const octo    = pwToken ? new Octokit({ auth: pwToken }) : null;
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function uploadCardToRepo(file, pokeId) {
+  if (!octo) throw new Error("No owner token in this browser");
+
+  /* 1️⃣  create/replace the image --------------------------------------- */
+  const dataURL = await fileToBase64(file);               // "data:image/png;base64,AAA…"
+  const ext     = file.type.split("/")[1] || "png";
+  const imgPath = `cards/${Date.now()}-${pokeId}.${ext}`; // unique filename
+
+  await octo.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+    owner:   "boroviec",
+    repo:    "PokeWall",
+    path:    imgPath,
+    branch:  "main",
+    message: `Add custom card ${pokeId}`,
+    content: dataURL.split(",")[1]                       // strip "data:*;base64,"
+  });
+
+  /* 2️⃣  read + patch the manifest -------------------------------------- */
+  let manifest = [];
+  let sha      = undefined;
+  try {
+    const { data } = await octo.request(
+      "GET /repos/{owner}/{repo}/contents/{path}",
+      { owner:"boroviec", repo:"PokeWall", path:"data/cards.json" }
+    );
+    manifest = JSON.parse(atob(data.content));
+    sha      = data.sha;                                  // needed for updates
+  } catch (err) {
+    if (err.status !== 404) throw err;                    // ignore 404 (first card ever)
+  }
+
+  manifest.push({ id: Number(pokeId), src: imgPath });
+
+  await octo.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+    owner:   "boroviec",
+    repo:    "PokeWall",
+    path:    "data/cards.json",
+    branch:  "main",
+    message: `Update manifest with ${pokeId}`,
+    content: btoa(JSON.stringify(manifest, null, 2)),
+    sha                                                // absent = *create* file
+  });
+
+  return `${RAW_ROOT}/${imgPath}`;                        // public URL for immediate preview
+}
+/* --------------------------------------------------- */
+
+uploader.addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file || !currentCardEl) return;
+
+  const pokeId = currentCardEl.dataset.id;
+  toast("Uploading to GitHub…");
+
+  try {
+    const publicURL = await uploadCardToRepo(file, pokeId);
+
+    // update UI instantly
+    currentCardEl.querySelector('img').src = publicURL;
+    currentCardEl.classList.add('custom');
+    overlayImg.src = publicURL;
+    overlayImg.classList.add('custom');
+    uploadBtn.style.display = 'none';
+    removeBtn.style.display = 'block';
+    toast("Uploaded! Everyone can see it 🎉");
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
+    }
+  } catch (err) {
+    console.error(err);
+    toast("Upload failed – are you on the owner browser?");
+  }
+});
 
       const hideOverlay = () => overlay.classList.remove('show');
       overlay.addEventListener('click', hideOverlay);
