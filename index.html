@@ -196,9 +196,14 @@ z-index: 1000;
 <input type='file' id='uploader' accept='image/*' style='display:none' />
 <div id='toast'></div>
 
-  
+<script>
+  window.token = 'YOUR_PERSONAL_ACCESS_TOKEN';
+  window.githubOwner = 'YOUR_GITHUB_USERNAME';
+  window.githubRepo = 'YOUR_REPOSITORY_NAME';
+</script>
+
 <script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
-  <script src="https://cdn.jsdelivr.net/npm/@octokit/rest/dist/octokit.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@octokit/rest/dist/octokit.umd.min.js"></script>
 
 <script>
     
@@ -284,56 +289,86 @@ console.error(err);
 }
 }
 
-// --- Add this function somewhere in your script, for example before enableInteractions() is called.
+// Add or replace the uploadImageToGitHub function in your script
 async function uploadImageToGitHub(file, cardId) {
-    if (!window.token) {
-        throw new Error('GitHub token not available.');
-    }
-    // These variables can be set from the console or elsewhere so you don't hardcode them:
-    const owner = window.githubOwner; // e.g. 'boroviec'
-    const repo  = window.githubRepo;  // e.g. 'PokeWall'
+  if (!window.token) {
+    throw new Error('GitHub token not available.');
+  }
+  const owner = window.githubOwner; // e.g. 'boroviec'
+  const repo  = window.githubRepo;  // e.g. 'PokeWall'
   
-    // Create an Octokit instance using your already-set token
-    const octokit = new Octokit({ auth: window.token });
+  // Create an Octokit instance using your token
+  const octokit = new Octokit({ auth: window.token });
   
-    // Define the file path in the repo for this card image.
-    const imagePath = `img/custom/${cardId}.png`;
+  // Define the file path in the repo for this card image.
+  const imagePath = `img/custom/${cardId}.png`;
   
-    // Convert the file to a base64 string.
-    const base64Content = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]); // Remove the data URL prefix
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+  // Convert the file to a base64 string.
+  const base64Content = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]); // Remove the data URL prefix
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
   
-    // Check if the file already exists, so we can update it.
-    let sha;
-    try {
-      const { data } = await octokit.repos.getContent({
-        owner,
-        repo,
-        path: imagePath
-      });
-      sha = data.sha;
-    } catch (error) {
-      // File doesn't exist; we'll create it.
-    }
-  
-    // Create or update the file on GitHub.
-    const response = await octokit.repos.createOrUpdateFileContents({
+  // Check if the file already exists (to update rather than create)
+  let sha;
+  try {
+    const { data } = await octokit.repos.getContent({
       owner,
       repo,
-      path: imagePath,
-      message: `Upload custom card image for card ${cardId}`,
-      content: base64Content,
-      sha,
-      committer: { name: 'Your Name', email: 'you@example.com' },
-      author: { name: 'Your Name', email: 'you@example.com' }
+      path: imagePath
     });
+    sha = data.sha;
+  } catch (error) {
+    // File doesn't exist; we'll create it.
+  }
   
-    // Return the URL to the file in the GitHub repo.
-    return response.data.content.download_url;
+  // Create or update the image file on GitHub.
+  const imageResponse = await octokit.repos.createOrUpdateFileContents({
+    owner,
+    repo,
+    path: imagePath,
+    message: `Upload custom card image for card ${cardId}`,
+    content: base64Content,
+    sha,
+    committer: { name: 'Your Name', email: 'you@example.com' },
+    author: { name: 'Your Name', email: 'you@example.com' }
+  });
+  
+  // Update the manifest file (cards.json) with the new image path.
+  const manifestPath = 'data/cards.json';
+  let manifestSha;
+  let manifestData = {};
+  try {
+    const { data } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path: manifestPath
+    });
+    manifestSha = data.sha;
+    manifestData = JSON.parse(atob(data.content));
+  } catch (err) {
+    // If the manifest doesn't exist, start with an empty object.
+    manifestData = {};
+  }
+  
+  manifestData[cardId] = imagePath;
+  const updatedManifest = btoa(JSON.stringify(manifestData, null, 2));
+  
+  await octokit.repos.createOrUpdateFileContents({
+    owner,
+    repo,
+    path: manifestPath,
+    message: `Update manifest for card ${cardId}`,
+    content: updatedManifest,
+    sha: manifestSha,
+    committer: { name: 'Your Name', email: 'you@example.com' },
+    author: { name: 'Your Name', email: 'you@example.com' }
+  });
+  
+  // Return the GitHub-hosted image URL.
+  return imageResponse.data.content.download_url;
 }
 
 function enableInteractions() {
