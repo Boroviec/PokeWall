@@ -246,11 +246,10 @@ if (!families[group]) { families[group] = []; order.push(group); }
 families[group].push({ id, url });
 });
 
-        const customImgs = JSON.parse(localStorage.getItem('customCards') || '{}');
+        let customImgs = JSON.parse(localStorage.getItem('customCards') || '{}');
           // ---- NEW ----  load the manifest once per buildWall()
           const manifest = await fetch(`${MANIFEST_URL}?v=${Date.now()}`).then(r => r.json());
-          // turn it into a quick lookup table:  { "25": "https://…/cards/25.webp", … }
-          const customImgs = {};
+          // update customImgs with manifest data:  { "25": "https://…/cards/25.webp", … }
           manifest.forEach(({ id, src }) => { customImgs[id] = `${RAW_ROOT}/${src}`; });
 
 wall.textContent = '';
