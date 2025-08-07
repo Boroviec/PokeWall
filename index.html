@@ -198,19 +198,35 @@ z-index: 1000;
 
 <script src="https://cdn.jsdelivr.net/npm/@octokit/rest@19.0.7/dist/index.umd.js"></script>
 <script>
-  const isGitHubPages = window.location.hostname.includes('github.io');
-  if (isGitHubPages) {
-  } else {
-    const script = document.createElement('script');
-    script.src = 'config.js';
-    script.onload = () => {
-      // Only initialize after both Octokit and config are loaded
+// Define isGitHubPages before using it
+const isGitHubPages = window.location.hostname.includes('github.io');
+
+// Move initialization into a function
+function initialize() {
+  if (window.Octokit) {
+    if (!isGitHubPages) {
+      const script = document.createElement('script');
+      script.src = 'config.js';
+      script.onload = () => testGitHubToken().then(isValid => {
+        if (isValid) buildWall();
+      });
+      document.body.appendChild(script);
+    } else {
       testGitHubToken().then(isValid => {
         if (isValid) buildWall();
       });
-    };
-    document.body.appendChild(script);
+    }
+  } else {
+    setTimeout(initialize, 100); // Try again if Octokit isn't loaded yet
   }
+}
+
+// Start initialization when document is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initialize);
+} else {
+  initialize();
+}
 </script>
 
 <script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
@@ -555,10 +571,8 @@ if (document.readyState === 'loading') {
       if (isValid) buildWall();
     });
   });
-} else if (!isGitHubPages) {
-  testGitHubToken().then(isValid => {
-    if (isValid) buildWall();
-  });
+} else if (isGitHubPages && document.readyState !== 'loading') {
+  window.initApp();
 }
 </script>
 </body>
