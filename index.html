@@ -203,7 +203,7 @@ z-index: 1000;
 </script>
 
 <script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
-<script src="https://cdn.jsdelivr.net/npm/@octokit/rest/dist/octokit.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@octokit/rest@19.0.7/dist/index.umd.js"></script>
 
 <script>
     
@@ -230,6 +230,12 @@ t._tm = setTimeout(() => t.classList.remove('show'), dur);
 };
 
 async function buildWall() {
+// Add this check at the start of buildWall
+if (!window.token || !window.githubOwner || !window.githubRepo) {
+  console.error('GitHub credentials not set. Please set window.token, window.githubOwner, and window.githubRepo');
+  return;
+}
+
 const wall = document.getElementById('wall');
 try {
 const csvText = await fetch(CSV_URL).then(r => r.text());
@@ -251,15 +257,13 @@ if (!families[group]) { families[group] = []; order.push(group); }
 families[group].push({ id, url });
 });
 
-        let customImgs = JSON.parse(localStorage.getItem('customCards') || '{}');
-          // ---- NEW ----  load the manifest once per buildWall()
-          const manifest = await fetch(`${MANIFEST_URL}?v=${Date.now()}`).then(r => r.json());
-          // update customImgs with manifest data: { "25": "img/custom/25.png", … }
-          Object.entries(manifest).forEach(([id, src]) => {
-            if (!customImgs[id]) {
-              customImgs[id] = `${RAW_ROOT}/${src}`;
-            }
-          });
+let customImgs = {};
+// Load the manifest once per buildWall()
+const manifest = await fetch(`${MANIFEST_URL}?v=${Date.now()}`).then(r => r.json());
+// Update customImgs with manifest data
+Object.entries(manifest).forEach(([id, src]) => {
+  customImgs[id] = `${RAW_ROOT}/${src}`;
+});
 
 wall.textContent = '';
 order.sort((a,b)=>a-b).forEach(group => {
@@ -372,6 +376,48 @@ async function uploadImageToGitHub(file, cardId) {
   return imageResponse.data.content.download_url;
 }
 
+async function testGitHubToken() {
+  // First check if Octokit is loaded
+  if (typeof Octokit === 'undefined') {
+    console.error('❌ Octokit not loaded. Check script tag.');
+    return false;
+  }
+
+  // Check if credentials are set
+  if (!window.token || !window.githubOwner || !window.githubRepo) {
+    console.error('❌ Missing credentials. Please set token, owner, and repo.');
+    return false;
+  }
+
+  try {
+    const octokit = new Octokit({ auth: window.token });
+    
+    // Test authentication
+    const { data: user } = await octokit.rest.users.getAuthenticated();
+    console.log('✅ Authenticated as:', user.login);
+    
+    // Test repo access
+    const { data: repo } = await octokit.rest.repos.get({
+      owner: window.githubOwner,
+      repo: window.githubRepo
+    });
+    console.log('✅ Repository access confirmed:', repo.full_name);
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    toast('GitHub authentication failed: ' + error.message);
+    return false;
+  }
+}
+
+// Run the test
+testGitHubToken().then(isValid => {
+  if (isValid) {
+    console.log('🎉 All checks passed! Ready to upload images.');
+  }
+});
+
 function enableInteractions() {
 const uploader = document.getElementById('uploader');
 const overlay  = document.getElementById('overlay');
@@ -404,20 +450,42 @@ uploader.value = '';
 uploader.click();
 });
 
-removeBtn.addEventListener('click', (e) => {
-e.stopPropagation();
-if (!currentCardEl) return;
-const id = currentCardEl.dataset.id;
-const store = JSON.parse(localStorage.getItem('customCards') || '{}');
-        delete store[id];
-        localStorage.setItem('customCards', JSON.stringify(store));
-        //delete store[id];
-        //localStorage.setItem('customCards', JSON.stringify(store));
-currentCardEl.classList.remove('custom');
-currentCardEl.querySelector('img').src = '';
-buildWall();
-overlay.classList.remove('show');
-toast('Custom image removed.');
+removeBtn.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!currentCardEl) return;
+  const id = currentCardEl.dataset.id;
+  
+  try {
+    // Remove from manifest
+    const octokit = new OctokitConstructor({ auth: window.token });
+    const manifestPath = 'data/cards.json';
+    const { data } = await octokit.repos.getContent({
+      owner: window.githubOwner,
+      repo: window.githubRepo,
+      path: manifestPath
+    });
+    
+    const manifestData = JSON.parse(atob(data.content));
+    delete manifestData[id];
+    
+    await octokit.repos.createOrUpdateFileContents({
+      owner: window.githubOwner,
+      repo: window.githubRepo,
+      path: manifestPath,
+      message: `Remove card ${id} from manifest`,
+      content: btoa(JSON.stringify(manifestData, null, 2)),
+      sha: data.sha,
+      committer: { name: 'Your Name', email: 'you@example.com' },
+      author: { name: 'Your Name', email: 'you@example.com' }
+    });
+    
+    buildWall();
+    overlay.classList.remove('show');
+    toast('Custom image removed.');
+  } catch (err) {
+    console.error(err);
+    toast('Failed to remove custom image.');
+  }
 });
 
 uploader.addEventListener('change', e => {
@@ -434,41 +502,29 @@ uploader.addEventListener('change', e => {
     imgEl.src = dataURL;
     const cardId = currentCardEl.dataset.id;
     
-    // Save locally in localStorage if desired (optional)
-    const store = JSON.parse(localStorage.getItem('customCards') || '{}');
-    store[cardId] = dataURL;
-    try {
-      localStorage.setItem('customCards', JSON.stringify(store));
-    } catch(err) {
-      if (err && err.name === 'QuotaExceededError') {
-        toast('Storage full, clearing old custom cards…');
-        localStorage.removeItem('customCards');
-        localStorage.setItem('customCards', JSON.stringify({ [cardId]: dataURL }));
-      } else {
-        console.error(err);
-        toast('Failed to save image.');
-        return;
-      }
-    }
     currentCardEl.classList.add('custom');
     uploadBtn.style.display = 'none';
     removeBtn.style.display = 'block';
     overlayImg.src = dataURL;
     overlayImg.classList.add('custom');
-    toast('Saved locally!');
-    if (typeof confetti === 'function') {
-      confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
-    }
     
-    // Now upload the image to GitHub.
+    // Upload the image to GitHub
     try {
       const gitHubImgUrl = await uploadImageToGitHub(file, cardId);
-      // Update the card image to the URL served from GitHub.
+      // Update the card image to the URL served from GitHub
       imgEl.src = gitHubImgUrl;
       toast('Uploaded to GitHub!');
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
+      }
     } catch (err) {
       console.error(err);
       toast('GitHub upload failed.');
+      // Revert UI changes on failure
+      currentCardEl.classList.remove('custom');
+      uploadBtn.style.display = 'block';
+      removeBtn.style.display = 'none';
+      overlayImg.classList.remove('custom');
     }
   };
   reader.readAsDataURL(file);
@@ -480,9 +536,22 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideOverla
 }
 
 if (document.readyState === 'loading') {
-document.addEventListener('DOMContentLoaded', buildWall);
+  document.addEventListener('DOMContentLoaded', async () => {
+    const isValid = await testGitHubToken();
+    if (isValid) {
+      buildWall();
+    } else {
+      document.getElementById('wall').textContent = 'GitHub authentication failed. Check console for details.';
+    }
+  });
 } else {
-buildWall();
+  testGitHubToken().then(isValid => {
+    if (isValid) {
+      buildWall();
+    } else {
+      document.getElementById('wall').textContent = 'GitHub authentication failed. Check console for details.';
+    }
+  });
 }
 </script>
 </body>
