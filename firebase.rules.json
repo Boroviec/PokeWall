@@ -1,0 +1,11 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "cards": {
+      "$cardId": {
+        ".validate": "newData.hasChildren(['url', 'timestamp'])"
+      }
+    }
+  }
+}

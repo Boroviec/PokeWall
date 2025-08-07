@@ -3,7 +3,7 @@
 <head>
 <meta charset='UTF-8' />
 <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-<title>PokeWall – 151 Pokémon TCG cards</title>
+<title>PokeWall – 151 Pokémon Collection</title>
 <style>
 :root {
 --card-w: 120px;
@@ -163,222 +163,271 @@ transform: translateY(-2px);
 box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 }
 
-#toast {
+#admin-panel {
 position: fixed;
-bottom: 24px;
-left: 50%;
-transform: translateX(-50%);
-background: rgba(0,0,0,0.8);
-color: #fff;
-padding: 8px 16px;
-border-radius: 24px;
-font-size: 0.9rem;
-opacity: 0;
-pointer-events: none;
-transition: opacity 0.4s var(--ease);
-z-index: 1000;
+top: 10px;
+right: 10px;
+background: white;
+padding: 10px;
+border-radius: 5px;
+box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+z-index: 1001;
 }
-#toast.show { opacity: 1; }
+
+.hidden { display: none !important; }
 </style>
 </head>
 <body>
 <h1>PokeWall</h1>
-<div id='wall'>Loading…</div>
 
-<div id='overlay'>
+<div id="admin-panel">
+  <input type="password" id="admin-password" placeholder="Admin password">
+  <button onclick="toggleAdmin()">Login</button>
+  <span id="admin-status"></span>
+</div>
+
+<div id='wall'>Loading Pokémon...</div>
+
+<div id='overlay' onclick="closeOverlay()">
 <div class='overlay-content'>
-<img alt='card enlarged' />
-<button id='upload-btn'>Upload</button>
-<button id='remove-btn'>Remove</button>
+<img id="overlay-img" alt='card enlarged' />
+<button id='upload-btn' class="hidden" onclick="triggerUpload()">Upload</button>
+<button id='remove-btn' class="hidden" onclick="removePhoto()">Remove</button>
 </div>
 </div>
 
-<input type='file' id='uploader' accept='image/*' style='display:none' />
-<div id='toast'></div>
+<input type='file' id='file-input' accept='image/*' style='display:none' onchange="uploadPhoto()" />
 
-<!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
 <script>
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-const isAdmin = localStorage.getItem('isAdmin') === ADMIN_PASSWORD;
+const db = firebase.database();
 
-// Show/hide admin buttons
-document.querySelectorAll('#upload-btn, #remove-btn').forEach(btn => 
-  btn.style.display = isAdmin ? 'block' : 'none'
-);
+let isAdmin = false;
+let currentCardId = null;
 
-// Initialize wall when document is ready
-document.addEventListener('DOMContentLoaded', buildWall);
-
+// Google Sheets configuration
 const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
 const GID = '0';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
-async function buildWall() {
+// CSV parsing helper
+const parseCSV = text => text.trim().split(/\r?\n/)
+  .map(line => line.split(/,(?=(?:[^\\"]*\\"[^\\"]*\\")*[^\\"]*$)/)
+  .map(c => c.replace(/^"|"$/g, '').trim()));
+
+// Create family groups like original
+const POKEMON_FAMILIES = {
+  1: [1, 2, 3],      // Bulbasaur family
+  4: [4, 5, 6],      // Charmander family  
+  7: [7, 8, 9],      // Squirtle family
+  // Add more families as needed, or use singles
+};
+
+// Generate all 151 Pokemon with families
+const generatePokemonData = () => {
+  const families = {};
+  const used = new Set();
+  
+  // Add known families
+  Object.entries(POKEMON_FAMILIES).forEach(([groupId, members]) => {
+    families[groupId] = members.map(id => ({ id, group: groupId }));
+    members.forEach(id => used.add(id));
+  });
+  
+  // Add remaining Pokemon as singles
+  for (let i = 1; i <= 151; i++) {
+    if (!used.has(i)) {
+      families[i] = [{ id: i, group: i }];
+    }
+  }
+  
+  return families;
+};
+
+// Load and display cards with Google Sheets data
+async function loadCards() {
   const wall = document.getElementById('wall');
+  wall.innerHTML = 'Loading Pokémon from Google Sheets...';
+
   try {
-    // Load card data from Google Sheets
+    // Fetch data from Google Sheets
     const csvText = await fetch(CSV_URL).then(r => r.text());
     const rows = parseCSV(csvText);
-    const header      = rows[0].map(h => h.trim());
-const colNo       = header.indexOf('No.');
-const colGroup    = header.indexOf('Group');
-const colCardLink = header.indexOf('Link to the Card');
-if (colNo === -1 || colGroup === -1 || colCardLink === -1) throw new Error('Required columns not found');
-
-const families = {};
-const order    = [];
-rows.slice(1).forEach(r => {
-const id = parseInt(r[colNo], 10);
-if (!id || id > 151) return;
-const group = r[colGroup].trim();
-const url   = r[colCardLink].trim();
-if (!families[group]) { families[group] = []; order.push(group); }
-families[group].push({ id, url });
-});
-
-    // Load custom images from Firebase
-    const customImgs = {};
-    const snapshot = await firebase.database().ref('cards').once('value');
-    const firebaseData = snapshot.val() || {};
-    Object.entries(firebaseData).forEach(([id, data]) => {
-      customImgs[id] = data.url;
-    });
-
-wall.textContent = '';
-order.sort((a,b)=>a-b).forEach(group => {
-const slab = document.createElement('div');
-slab.className = 'family-block';
-const cards = families[group];
-const cols  = Math.min(cards.length, 9);
-slab.style.gridTemplateColumns = `repeat(${cols}, var(--card-w))`;
-
-cards.sort((a,b)=>a.id-b.id).forEach(({ id, url }) => {
-const card = document.createElement('div');
-card.className = 'pokemon-card';
-card.dataset.id = id;
-const img = document.createElement('img');
-img.src = customImgs[id] || url;
-card.appendChild(img);
-if (customImgs[id]) card.classList.add('custom');
-slab.appendChild(card);
-});
-wall.appendChild(slab);
-});
-
-enableInteractions();
-} catch(err) {
-wall.textContent = 'Failed to load data.';
-console.error(err);
-}
-}
-
-function enableInteractions() {
-const uploader = document.getElementById('uploader');
-const overlay  = document.getElementById('overlay');
-const overlayImg = overlay.querySelector('img');
-const uploadBtn = document.getElementById('upload-btn');
-const removeBtn = document.getElementById('remove-btn');
-let currentCardEl = null;
-
-document.querySelectorAll('.pokemon-card').forEach(card => {
-card.addEventListener('click', (e) => {
-currentCardEl = card;
-if (e.altKey) {
-uploader.value = '';
-uploader.click();
-return;
-}
-overlayImg.src = card.querySelector('img').src;
-const hasCustom = card.classList.contains('custom');
-uploadBtn.style.display = hasCustom ? 'none' : 'block';
-removeBtn.style.display = hasCustom ? 'block' : 'none';
-overlayImg.classList.toggle('custom', hasCustom);
-overlay.classList.add('show');
-});
-});
-
-uploadBtn.addEventListener('click', (e) => {
-e.stopPropagation();
-if (!currentCardEl) return;
-uploader.value = '';
-uploader.click();
-});
-
-removeBtn.addEventListener('click', async (e) => {
-  e.stopPropagation();
-  if (!currentCardEl) return;
-  const id = currentCardEl.dataset.id;
-  
-  try {
-    // Remove from Firebase
-    const storage = firebase.storage().ref();
-    const fileRef = storage.child(`cards/${id}.png`);
-    await fileRef.delete();
-    await firebase.database().ref(`cards/${id}`).remove();
-
-    // Update UI
-    currentCardEl.classList.remove('custom');
-    buildWall();
-    overlay.classList.remove('show');
-    toast('Custom image removed.');
-  } catch (err) {
-    console.error(err);
-    toast('Failed to remove custom image.');
-  }
-});
-
-uploader.addEventListener('change', async e => {
-  const file = e.target.files && e.target.files[0];
-  if (!file || !currentCardEl) return;
-  if (!file.type.startsWith('image/')) {
-    toast('Please choose an image file.');
-    return;
-  }
-
-  const cardId = currentCardEl.dataset.id;
-  const imgEl = currentCardEl.querySelector('img');
-  
-  try {
-    // Upload to Firebase
-    const storage = firebase.storage().ref();
-    const fileRef = storage.child(`cards/${cardId}.png`);
+    const header = rows[0].map(h => h.trim());
     
-    await fileRef.put(file);
-    const url = await fileRef.getDownloadURL();
+    const colNo = header.indexOf('No.');
+    const colGroup = header.indexOf('Group');
+    const colCardLink = header.indexOf('Link to the Card');
     
-    await firebase.database().ref(`cards/${cardId}`).set({
-      url,
-      timestamp: Date.now()
-    });
-
-    // Update UI
-    imgEl.src = url;
-    currentCardEl.classList.add('custom');
-    uploadBtn.style.display = 'none';
-    removeBtn.style.display = 'block';
-    overlayImg.src = url;
-    overlayImg.classList.add('custom');
-    
-    toast('Uploaded successfully!');
-    if (typeof confetti === 'function') {
-      confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
+    if (colNo === -1 || colGroup === -1 || colCardLink === -1) {
+      throw new Error('Required columns not found in Google Sheets');
     }
-  } catch (err) {
-    console.error(err);
-    toast('Upload failed.');
-    currentCardEl.classList.remove('custom');
-    uploadBtn.style.display = 'block';
-    removeBtn.style.display = 'none';
-    overlayImg.classList.remove('custom');
+
+    // Parse Pokemon data from sheets
+    const families = {};
+    const order = [];
+    
+    rows.slice(1).forEach(r => {
+      const id = parseInt(r[colNo], 10);
+      if (!id || id > 151) return;
+      const group = r[colGroup].trim();
+      const url = r[colCardLink].trim();
+      
+      if (!families[group]) { 
+        families[group] = []; 
+        order.push(group); 
+      }
+      families[group].push({ id, url, group });
+    });
+
+    // Get custom images from Firebase
+    const customImages = await db.ref('cards').once('value');
+    const customData = customImages.val() || {};
+    
+    wall.innerHTML = '';
+    
+    // Create family blocks with Pokemon data
+    order.sort((a,b) => Number(a) - Number(b)).forEach(group => {
+      const cards = families[group];
+      
+      const slab = document.createElement('div');
+      slab.className = 'family-block';
+      const cols = Math.min(cards.length, 9);
+      slab.style.gridTemplateColumns = `repeat(${cols}, var(--card-w))`;
+
+      cards.sort((a,b) => a.id - b.id).forEach(({ id, url }) => {
+        const card = document.createElement('div');
+        card.className = 'pokemon-card';
+        card.dataset.id = id;
+        card.onclick = () => openCard(id);
+        
+        // Use custom image if available, otherwise use original from sheets
+        if (customData[id]) {
+          const img = document.createElement('img');
+          img.src = customData[id].url;
+          card.appendChild(img);
+          card.classList.add('custom');
+        } else if (url) {
+          const img = document.createElement('img');
+          img.src = url;
+          card.appendChild(img);
+        }
+        
+        slab.appendChild(card);
+      });
+      
+      wall.appendChild(slab);
+    });
+
+  } catch (error) {
+    console.error('Error loading Pokemon data:', error);
+    wall.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: #666;">
+        <h3>Unable to load Pokemon cards</h3>
+        <p>Error: ${error.message}</p>
+        <p>Please check the Google Sheets connection.</p>
+      </div>
+    `;
   }
-});
+}
+
+function openCard(id) {
+  currentCardId = id;
+  const overlay = document.getElementById('overlay');
+  const overlayImg = document.getElementById('overlay-img');
+  
+  // Get custom image from Firebase first, then fallback to sheets
+  db.ref(`cards/${id}`).once('value').then(snapshot => {
+    const data = snapshot.val();
+    if (data) {
+      overlayImg.src = data.url;
+      overlayImg.classList.add('custom');
+    } else {
+      // Find original card from sheets data
+      const cardElement = document.querySelector(`[data-id="${id}"] img`);
+      if (cardElement && cardElement.src) {
+        overlayImg.src = cardElement.src;
+        overlayImg.classList.remove('custom');
+      } else {
+        overlayImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIHBob3RvPC90ZXh0Pjwvc3ZnPg==';
+        overlayImg.classList.remove('custom');
+      }
+    }
+  });
+  
+  // Show/hide admin buttons
+  document.getElementById('upload-btn').className = isAdmin ? '' : 'hidden';
+  document.getElementById('remove-btn').className = isAdmin ? '' : 'hidden';
+  
+  overlay.classList.add('show');
+}
+
+function closeOverlay() {
+  const overlay = document.getElementById('overlay');
+  overlay.classList.remove('show');
+}
+
+function toggleAdmin() {
+  const password = document.getElementById('admin-password').value;
+  const status = document.getElementById('admin-status');
+  
+  if (password === 'Proste89') {
+    isAdmin = true;
+    status.textContent = '✅ Admin';
+    status.style.color = 'green';
+  } else {
+    isAdmin = false;
+    status.textContent = '❌ Access denied';
+    status.style.color = 'red';
+  }
+}
+
+function triggerUpload() {
+  document.getElementById('file-input').click();
+}
+
+async function uploadPhoto() {
+  const file = document.getElementById('file-input').files[0];
+  if (!file || !isAdmin || !currentCardId) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      await db.ref(`cards/${currentCardId}`).set({
+        url: e.target.result,
+        timestamp: Date.now()
+      });
+      
+      alert('Photo uploaded successfully!');
+      closeOverlay();
+      loadCards(); // Refresh view
+    } catch (error) {
+      alert('Upload failed: ' + error.message);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function removePhoto() {
+  if (!isAdmin || !currentCardId) return;
+  
+  if (confirm('Remove this photo?')) {
+    try {
+      await db.ref(`cards/${currentCardId}`).remove();
+      alert('Photo removed!');
+      closeOverlay();
+      loadCards(); // Refresh view
+    } catch (error) {
+      alert('Remove failed: ' + error.message);
+    }
+  }
+}
+
+// Initialize
+loadCards();
 </script>
 </body>
 </html>
