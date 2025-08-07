@@ -226,7 +226,7 @@ transform: translateY(-2px);
 box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 }
 
-/* Collection Counter */
+/* Collection Counter - make blue */
 .collection-stats {
   text-align: center;
   margin: 10px 0 30px 0;
@@ -236,7 +236,7 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 
 .stats-number {
   font-weight: bold;
-  color: #ff6b35;
+  color: #3b82f6;
   font-size: 1.4rem;
 }
 
@@ -251,19 +251,19 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #ff6b35, #f7931e);
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
   border-radius: 4px;
   transition: width 0.5s ease;
 }
 
-/* Enhanced Admin Panel */
+/* Enhanced Admin Panel - change to blue */
 .admin-toggle {
   position: fixed;
   top: 20px;
   right: 20px;
   width: 50px;
   height: 50px;
-  background: linear-gradient(135deg, #ff0000 50%, #ffffff 50%);
+  background: linear-gradient(135deg, #3b82f6 50%, #ffffff 50%);
   border: 3px solid #333;
   border-radius: 50%;
   cursor: pointer;
@@ -339,14 +339,14 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 
 #admin-panel input:focus {
   outline: none;
-  border-color: #ff6b35;
-  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 #admin-panel button {
   width: 100%;
   padding: 10px;
-  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
   border: none;
   border-radius: 8px;
@@ -435,11 +435,11 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
   position: relative;
   width: var(--card-w);
   height: var(--card-h);
-  background: linear-gradient(90deg, #dbeafe 25%, #bfdbfe 50%, #dbeafe 75%);
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
   border-radius: 8px;
-  border: 2px solid #93c5fd;
+  border: 2px solid #e8e8e8;
   position: relative;
 }
 
@@ -447,9 +447,9 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
   content: '';
   position: absolute;
   inset: 4px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #f5f5f5 0%, #e5e5e5 100%);
   border-radius: 6px;
-  opacity: 0.3;
+  opacity: 0.5;
 }
 
 @keyframes loading {
@@ -459,16 +459,16 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 
 /* Enhanced Skeleton Loading with Pokemon Blue Theme */
 .skeleton-family-block {
-  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
   border-radius: 16px;
   box-shadow: 
-    0 8px 32px rgba(30, 58, 138, 0.3),
+    0 8px 32px rgba(0,0,0,0.3),
     inset 0 1px 0 rgba(255,255,255,0.1);
   padding: 28px;
   display: grid;
   gap: var(--gap);
   position: relative;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: 1px solid rgba(255,255,255,0.1);
   animation: skeleton-pulse 2s ease-in-out infinite;
 }
 
@@ -482,18 +482,9 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
 }
 
+/* Remove skeleton family label completely */
 .skeleton-family-label {
-  position: absolute;
-  top: -12px;
-  left: 20px;
-  background: linear-gradient(90deg, #60a5fa, #93c5fd);
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  height: 16px;
-  width: 60px;
-  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.4);
-  animation: skeleton-pulse 2s ease-in-out infinite;
+  display: none;
 }
 
 .hidden { display: none !important; }
@@ -620,12 +611,6 @@ async function loadCards() {
       const cols = Math.min(cards.length, 9);
       slab.style.gridTemplateColumns = `repeat(${cols}, var(--card-w))`;
 
-      // Add family label
-      const label = document.createElement('div');
-      label.className = 'family-label';
-      label.textContent = `Group ${group}`;
-      slab.appendChild(label);
-
       cards.sort((a,b) => a.id - b.id).forEach(({ id, url }) => {
         const card = document.createElement('div');
         card.className = 'pokemon-card';
@@ -696,10 +681,7 @@ function showSkeletonLoading(wall) {
     slab.className = 'skeleton-family-block';
     slab.style.gridTemplateColumns = `repeat(${family.cards}, var(--card-w))`;
     
-    // Add skeleton family label
-    const label = document.createElement('div');
-    label.className = 'skeleton-family-label';
-    slab.appendChild(label);
+    // Remove skeleton family label - no longer needed
     
     // Add skeleton cards
     for (let i = 0; i < family.cards; i++) {
