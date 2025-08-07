@@ -298,7 +298,8 @@ async function uploadImageToGitHub(file, cardId) {
   const repo  = window.githubRepo;  // e.g. 'PokeWall'
   
   // Create an Octokit instance using your token
-  const octokit = new window.Octokit({ auth: window.token });
+  const OctokitConstructor = window.Octokit && window.Octokit.default ? window.Octokit.default : window.Octokit;
+  const octokit = new OctokitConstructor({ auth: window.token });
   
   // Define the file path in the repo for this card image.
   const imagePath = `img/custom/${cardId}.png`;
