@@ -200,15 +200,14 @@ z-index: 1000;
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="config-loader.js"></script>
 <script src="firebase-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
 <script>
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-
-// Initialize wall when document is ready
-document.addEventListener('DOMContentLoaded', buildWall);
+const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
+const GID = '0';
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
 async function buildWall() {
   const wall = document.getElementById('wall');
@@ -240,14 +239,6 @@ families[group].push({ id, url });
     Object.entries(firebaseData).forEach(([id, data]) => {
       customImgs[id] = data.url;
     });
-
-let customImgs = {};
-// Load the manifest once per buildWall()
-const manifest = await fetch(`${MANIFEST_URL}?v=${Date.now()}`).then(r => r.json());
-// Update customImgs with manifest data
-Object.entries(manifest).forEach(([id, src]) => {
-  customImgs[id] = `${RAW_ROOT}/${src}`;
-});
 
 wall.textContent = '';
 order.sort((a,b)=>a-b).forEach(group => {
@@ -368,43 +359,43 @@ uploader.addEventListener('change', e => {
     overlayImg.classList.add('custom');
     
     // Upload the image to GitHub
+    try {(file, cardId);
+    const cardId = currentCardEl.dataset.id;  // Update the card image to the URL served from GitHub
+    
+    currentCardEl.classList.add('custom');
+    uploadBtn.style.display = 'none';n') {
+    removeBtn.style.display = 'block';unt: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
+    overlayImg.src = dataURL;
+    overlayImg.classList.add('custom');} catch (err) {
+    
+    // Upload the image to GitHubst('GitHub upload failed.');
     try {
       const gitHubImgUrl = await uploadImageToGitHub(file, cardId);
-      // Update the card image to the URL served from GitHub
-      imgEl.src = gitHubImgUrl;
-      toast('Uploaded to GitHub!');
+      // Update the card image to the URL served from GitHub 'block';
+      imgEl.src = gitHubImgUrl;ne';
+      toast('Uploaded to GitHub!');;
       if (typeof confetti === 'function') {
         confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
-      }
+      }URL(file);
     } catch (err) {
       console.error(err);
-      toast('GitHub upload failed.');
+      toast('GitHub upload failed.');ssList.remove('show');
       // Revert UI changes on failure
-      currentCardEl.classList.remove('custom');
+      currentCardEl.classList.remove('custom'); => { if (e.key === 'Escape') hideOverlay(); });
       uploadBtn.style.display = 'block';
       removeBtn.style.display = 'none';
-      overlayImg.classList.remove('custom');
-    }
-  };
-  reader.readAsDataURL(file);
-});
+      overlayImg.classList.remove('custom');ocument.readyState === 'loading') {
+    }cument.addEventListener('DOMContentLoaded', () => {
+  };ed at this point
+  reader.readAsDataURL(file); if (!isGitHubPages) return; // Local init handled by config.js onload
+});    testGitHubToken().then(isValid => {
 
 const hideOverlay = () => overlay.classList.remove('show');
 overlay.addEventListener('click', hideOverlay);
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideOverlay(); });
-}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideOverlay(); }); else if (isGitHubPages && document.readyState !== 'loading') {
+}  window.initApp();
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    // Config is already loaded at this point
-    if (!isGitHubPages) return; // Local init handled by config.js onload
-    testGitHubToken().then(isValid => {
-      if (isValid) buildWall();
-    });
-  });
-} else if (isGitHubPages && document.readyState !== 'loading') {
-  window.initApp();
-}
-</script>
-</body>
+    // Config is already loaded at this point    if (!isGitHubPages) return; // Local init handled by config.js onload    testGitHubToken().then(isValid => {      if (isValid) buildWall();    });  });} else if (isGitHubPages && document.readyState !== 'loading') {  window.initApp();}</script></body>
 </html>
