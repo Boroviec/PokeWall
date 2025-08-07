@@ -200,12 +200,11 @@ z-index: 1000;
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-<script src="config-loader.js"></script>
 <script src="firebase-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
 <script>
-// Initialize Firebase and admin status
+// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const isAdmin = localStorage.getItem('isAdmin') === ADMIN_PASSWORD;
 
@@ -318,29 +317,14 @@ removeBtn.addEventListener('click', async (e) => {
   const id = currentCardEl.dataset.id;
   
   try {
-    // Remove from manifest
-    const octokit = new OctokitConstructor({ auth: window.token });
-    const manifestPath = 'data/cards.json';
-    const { data } = await octokit.repos.getContent({
-      owner: window.githubOwner,
-      repo: window.githubRepo,
-      path: manifestPath
-    });
-    
-    const manifestData = JSON.parse(atob(data.content));
-    delete manifestData[id];
-    
-    await octokit.repos.createOrUpdateFileContents({
-      owner: window.githubOwner,
-      repo: window.githubRepo,
-      path: manifestPath,
-      message: `Remove card ${id} from manifest`,
-      content: btoa(JSON.stringify(manifestData, null, 2)),
-      sha: data.sha,
-      committer: { name: 'Your Name', email: 'you@example.com' },
-      author: { name: 'Your Name', email: 'you@example.com' }
-    });
-    
+    // Remove from Firebase
+    const storage = firebase.storage().ref();
+    const fileRef = storage.child(`cards/${id}.png`);
+    await fileRef.delete();
+    await firebase.database().ref(`cards/${id}`).remove();
+
+    // Update UI
+    currentCardEl.classList.remove('custom');
     buildWall();
     overlay.classList.remove('show');
     toast('Custom image removed.');
@@ -395,8 +379,6 @@ uploader.addEventListener('change', async e => {
     overlayImg.classList.remove('custom');
   }
 });
-
-// ...rest of existing code...
 </script>
 </body>
 </html>
