@@ -197,9 +197,21 @@ z-index: 1000;
 <div id='toast'></div>
 
 <script>
-  window.token = 'YOUR_PERSONAL_ACCESS_TOKEN';
-  window.githubOwner = 'YOUR_GITHUB_USERNAME';
-  window.githubRepo = 'YOUR_REPOSITORY_NAME';
+// For GitHub Pages deployment
+const isGitHubPages = window.location.hostname.includes('github.io');
+if (isGitHubPages) {
+  // Extract owner/repo from GitHub Pages URL
+  const pathParts = window.location.pathname.split('/');
+  window.githubOwner = pathParts[1];
+  window.githubRepo = pathParts[2] || pathParts[1];
+  // Use GitHub Pages token if provided
+  window.token = window.GITHUB_TOKEN || '';
+} else {
+  // Load local config if not on GitHub Pages
+  const script = document.createElement('script');
+  script.src = 'config.js';
+  document.body.appendChild(script);
+}
 </script>
 
 <script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
@@ -210,7 +222,9 @@ z-index: 1000;
 const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
 const GID      = '0';
 const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
-    const RAW_ROOT      = "https://raw.githubusercontent.com/boroviec/PokeWall/main";
+const RAW_ROOT = isGitHubPages 
+  ? `https://raw.githubusercontent.com/${window.githubOwner}/${window.githubRepo}/main`
+  : "https://raw.githubusercontent.com/boroviec/PokeWall/main";
     const MANIFEST_URL  = `${RAW_ROOT}/data/cards.json`;
 
 const parseCSV = (text) => {
