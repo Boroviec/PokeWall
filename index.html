@@ -205,6 +205,18 @@ z-index: 1000;
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
 <script>
+// Initialize Firebase and admin status
+firebase.initializeApp(firebaseConfig);
+const isAdmin = localStorage.getItem('isAdmin') === ADMIN_PASSWORD;
+
+// Show/hide admin buttons
+document.querySelectorAll('#upload-btn, #remove-btn').forEach(btn => 
+  btn.style.display = isAdmin ? 'block' : 'none'
+);
+
+// Initialize wall when document is ready
+document.addEventListener('DOMContentLoaded', buildWall);
+
 const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
 const GID = '0';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
@@ -338,64 +350,53 @@ removeBtn.addEventListener('click', async (e) => {
   }
 });
 
-uploader.addEventListener('change', e => {
+uploader.addEventListener('change', async e => {
   const file = e.target.files && e.target.files[0];
   if (!file || !currentCardEl) return;
   if (!file.type.startsWith('image/')) {
     toast('Please choose an image file.');
     return;
   }
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const dataURL = reader.result;
-    const imgEl = currentCardEl.querySelector('img');
-    imgEl.src = dataURL;
-    const cardId = currentCardEl.dataset.id;
+
+  const cardId = currentCardEl.dataset.id;
+  const imgEl = currentCardEl.querySelector('img');
+  
+  try {
+    // Upload to Firebase
+    const storage = firebase.storage().ref();
+    const fileRef = storage.child(`cards/${cardId}.png`);
     
+    await fileRef.put(file);
+    const url = await fileRef.getDownloadURL();
+    
+    await firebase.database().ref(`cards/${cardId}`).set({
+      url,
+      timestamp: Date.now()
+    });
+
+    // Update UI
+    imgEl.src = url;
     currentCardEl.classList.add('custom');
     uploadBtn.style.display = 'none';
     removeBtn.style.display = 'block';
-    overlayImg.src = dataURL;
+    overlayImg.src = url;
     overlayImg.classList.add('custom');
     
-    // Upload the image to GitHub
-    try {(file, cardId);
-    const cardId = currentCardEl.dataset.id;  // Update the card image to the URL served from GitHub
-    
-    currentCardEl.classList.add('custom');
-    uploadBtn.style.display = 'none';n') {
-    removeBtn.style.display = 'block';unt: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
-    overlayImg.src = dataURL;
-    overlayImg.classList.add('custom');} catch (err) {
-    
-    // Upload the image to GitHubst('GitHub upload failed.');
-    try {
-      const gitHubImgUrl = await uploadImageToGitHub(file, cardId);
-      // Update the card image to the URL served from GitHub 'block';
-      imgEl.src = gitHubImgUrl;ne';
-      toast('Uploaded to GitHub!');;
-      if (typeof confetti === 'function') {
-        confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
-      }URL(file);
-    } catch (err) {
-      console.error(err);
-      toast('GitHub upload failed.');ssList.remove('show');
-      // Revert UI changes on failure
-      currentCardEl.classList.remove('custom'); => { if (e.key === 'Escape') hideOverlay(); });
-      uploadBtn.style.display = 'block';
-      removeBtn.style.display = 'none';
-      overlayImg.classList.remove('custom');ocument.readyState === 'loading') {
-    }cument.addEventListener('DOMContentLoaded', () => {
-  };ed at this point
-  reader.readAsDataURL(file); if (!isGitHubPages) return; // Local init handled by config.js onload
-});    testGitHubToken().then(isValid => {
+    toast('Uploaded successfully!');
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 120, spread: 70, scalar: 0.8, origin: { y: 0.55 } });
+    }
+  } catch (err) {
+    console.error(err);
+    toast('Upload failed.');
+    currentCardEl.classList.remove('custom');
+    uploadBtn.style.display = 'block';
+    removeBtn.style.display = 'none';
+    overlayImg.classList.remove('custom');
+  }
+});
 
-const hideOverlay = () => overlay.classList.remove('show');
-overlay.addEventListener('click', hideOverlay);
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideOverlay(); }); else if (isGitHubPages && document.readyState !== 'loading') {
-}  window.initApp();
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    // Config is already loaded at this point    if (!isGitHubPages) return; // Local init handled by config.js onload    testGitHubToken().then(isValid => {      if (isValid) buildWall();    });  });} else if (isGitHubPages && document.readyState !== 'loading') {  window.initApp();}</script></body>
+// ...rest of existing code...
+</script>
+</body>
 </html>
