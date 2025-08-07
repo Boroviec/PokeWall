@@ -127,6 +127,42 @@ opacity: 0;
 opacity: 1;
 }
 
+.pokemon-card.custom {
+box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+border: 2px solid rgba(255, 107, 53, 0.3);
+}
+
+.custom-badge {
+position: absolute;
+top: 5px;
+right: 5px;
+background: linear-gradient(45deg, #ffd700, #ffed4e);
+color: #333;
+width: 20px;
+height: 20px;
+border-radius: 50%;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 12px;
+font-weight: bold;
+z-index: 2;
+box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.card-number {
+position: absolute;
+bottom: 5px;
+left: 5px;
+background: rgba(0,0,0,0.8);
+color: white;
+padding: 2px 6px;
+border-radius: 4px;
+font-size: 11px;
+font-weight: bold;
+z-index: 2;
+}
+
 #overlay {
 position: fixed;
 inset: 0;
@@ -188,6 +224,36 @@ transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
 #upload-btn:hover, #remove-btn:hover {
 transform: translateY(-2px);
 box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+}
+
+/* Collection Counter */
+.collection-stats {
+  text-align: center;
+  margin: 10px 0 30px 0;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.stats-number {
+  font-weight: bold;
+  color: #ff6b35;
+  font-size: 1.4rem;
+}
+
+.progress-bar {
+  width: 300px;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  margin: 10px auto;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6b35, #f7931e);
+  border-radius: 4px;
+  transition: width 0.5s ease;
 }
 
 /* Enhanced Admin Panel */
@@ -302,8 +368,6 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
   margin-top: 8px;
 }
 
-.hidden { display: none !important; }
-
 /* Pokeball Spinner */
 .pokeball-spinner {
   width: 60px;
@@ -382,71 +446,36 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
   100% { background-position: -200% 0; }
 }
 
-/* Collection Counter */
-.collection-stats {
-  text-align: center;
-  margin: 10px 0 30px 0;
-  font-size: 1.2rem;
-  color: #666;
+/* Enhanced Skeleton Loading */
+.skeleton-family-block {
+  background: linear-gradient(135deg, #e8e8e8 0%, #f0f0f0 100%);
+  border-radius: 16px;
+  padding: 28px;
+  display: grid;
+  gap: var(--gap);
+  position: relative;
+  margin-bottom: var(--gap);
+  animation: skeleton-pulse 2s ease-in-out infinite;
 }
 
-.stats-number {
-  font-weight: bold;
-  color: #ff6b35;
-  font-size: 1.4rem;
-}
-
-.progress-bar {
-  width: 300px;
-  height: 8px;
-  background: #e0e0e0;
-  border-radius: 4px;
-  margin: 10px auto;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #ff6b35, #f7931e);
-  border-radius: 4px;
-  transition: width 0.5s ease;
-}
-
-/* Enhanced Card Effects */
-.pokemon-card.custom {
-  box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
-  border: 2px solid rgba(255, 107, 53, 0.3);
-}
-
-.custom-badge {
+.skeleton-family-label {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  background: linear-gradient(45deg, #ffd700, #ffed4e);
-  color: #333;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: -12px;
+  left: 20px;
+  background: linear-gradient(90deg, #d0d0d0, #e0e0e0);
+  padding: 4px 12px;
+  border-radius: 12px;
   font-size: 12px;
-  font-weight: bold;
-  z-index: 2;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  height: 16px;
+  width: 60px;
+  animation: skeleton-pulse 2s ease-in-out infinite;
 }
 
-.card-number {
-  position: absolute;
-  bottom: 5px;
-  left: 5px;
-  background: rgba(0,0,0,0.8);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: bold;
-  z-index: 2;
+.hidden { display: none !important; }
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 </style>
 </head>
@@ -513,55 +542,10 @@ const parseCSV = text => text.trim().split(/\r?\n/)
   .map(line => line.split(/,(?=(?:[^\\"]*\\"[^\\"]*\\")*[^\\"]*$)/)
   .map(c => c.replace(/^"|"$/g, '').trim()));
 
-// Create family groups like original
-const POKEMON_FAMILIES = {
-  1: [1, 2, 3],      // Bulbasaur family
-  4: [4, 5, 6],      // Charmander family  
-  7: [7, 8, 9],      // Squirtle family
-  // Add more families as needed, or use singles
-};
-
-// Generate all 151 Pokemon with families
-const generatePokemonData = () => {
-  const families = {};
-  const used = new Set();
-  
-  // Add known families
-  Object.entries(POKEMON_FAMILIES).forEach(([groupId, members]) => {
-    families[groupId] = members.map(id => ({ id, group: groupId }));
-    members.forEach(id => used.add(id));
-  });
-  
-  // Add remaining Pokemon as singles
-  for (let i = 1; i <= 151; i++) {
-    if (!used.has(i)) {
-      families[i] = [{ id: i, group: i }];
-    }
-  }
-  
-  return families;
-};
-
-// Update collection stats
-function updateCollectionStats(customData) {
-  const collectedCount = Object.keys(customData).length;
-  const percentage = (collectedCount / 151) * 100;
-  
-  document.getElementById('collected-count').textContent = collectedCount;
-  document.getElementById('progress-fill').style.width = `${percentage}%`;
-}
-
-// Enhanced loadCards function
+// Simplified loadCards function
 async function loadCards() {
   const wall = document.getElementById('wall');
-  
-  // Show skeleton loading
-  wall.innerHTML = '';
-  for (let i = 0; i < 24; i++) {
-    const skeleton = document.createElement('div');
-    skeleton.className = 'skeleton-card';
-    wall.appendChild(skeleton);
-  }
+  showSkeletonLoading(wall);
 
   try {
     // Fetch data from Google Sheets
@@ -600,10 +584,9 @@ async function loadCards() {
     
     // Update stats
     updateCollectionStats(customData);
-    
     wall.innerHTML = '';
     
-    // Create family blocks with enhanced styling
+    // Create family blocks with Pokemon data
     order.sort((a,b) => Number(a) - Number(b)).forEach(group => {
       const cards = families[group];
       
@@ -661,46 +644,30 @@ async function loadCards() {
       <div style="text-align: center; padding: 40px; color: #666;">
         <h3>Unable to load Pokemon cards</h3>
         <p>Error: ${error.message}</p>
-        <p>Please check the Google Sheets connection.</p>
       </div>
     `;
   }
 }
 
-function openCard(id) {
-  currentCardId = id;
-  const overlay = document.getElementById('overlay');
-  const overlayImg = document.getElementById('overlay-img');
+function showSkeletonLoading(wall) {
+  wall.innerHTML = '';
   
-  // Get custom image from Firebase first, then fallback to sheets
-  db.ref(`cards/${id}`).once('value').then(snapshot => {
-    const data = snapshot.val();
-    if (data) {
-      overlayImg.src = data.url;
-      overlayImg.classList.add('custom');
-    } else {
-      // Find original card from sheets data
-      const cardElement = document.querySelector(`[data-id="${id}"] img`);
-      if (cardElement && cardElement.src) {
-        overlayImg.src = cardElement.src;
-        overlayImg.classList.remove('custom');
-      } else {
-        overlayImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIHBob3RvPC90ZXh0Pjwvc3ZnPg==';
-        overlayImg.classList.remove('custom');
-      }
-    }
-  });
-  
-  // Show/hide admin buttons
-  document.getElementById('upload-btn').className = isAdmin ? '' : 'hidden';
-  document.getElementById('remove-btn').className = isAdmin ? '' : 'hidden';
-  
-  overlay.classList.add('show');
+  // Simple grid of skeleton cards
+  for (let i = 0; i < 20; i++) {
+    const card = document.createElement('div');
+    card.className = 'skeleton-card';
+    card.style.animationDelay = `${i * 0.05}s`;
+    wall.appendChild(card);
+  }
 }
 
-function closeOverlay() {
-  const overlay = document.getElementById('overlay');
-  overlay.classList.remove('show');
+// Update collection stats
+function updateCollectionStats(customData) {
+  const collectedCount = Object.keys(customData).length;
+  const percentage = (collectedCount / 151) * 100;
+  
+  document.getElementById('collected-count').textContent = collectedCount;
+  document.getElementById('progress-fill').style.width = `${percentage}%`;
 }
 
 function toggleAdminPanel() {
@@ -709,7 +676,6 @@ function toggleAdminPanel() {
   
   if (adminPanelVisible) {
     panel.classList.add('show');
-    // Focus on password input when panel opens
     setTimeout(() => {
       document.getElementById('admin-password').focus();
     }, 300);
@@ -726,7 +692,6 @@ function toggleAdmin() {
     isAdmin = true;
     status.textContent = '✅ Admin Access';
     status.style.color = '#28a745';
-    // Auto-hide panel after successful login
     setTimeout(() => {
       toggleAdminPanel();
     }, 1500);
@@ -737,23 +702,48 @@ function toggleAdmin() {
   }
 }
 
-// Close admin panel when clicking outside
-document.addEventListener('click', (e) => {
-  const panel = document.getElementById('admin-panel');
-  const toggle = document.querySelector('.admin-toggle');
+function openCard(id) {
+  currentCardId = id;
+  const overlay = document.getElementById('overlay');
+  const overlayImg = document.getElementById('overlay-img');
   
-  if (adminPanelVisible && !panel.contains(e.target) && !toggle.contains(e.target)) {
-    toggleAdminPanel();
-  }
-});
+  db.ref(`cards/${id}`).once('value').then(snapshot => {
+    const data = snapshot.val();
+    if (data) {
+      overlayImg.src = data.url;
+      overlayImg.classList.add('custom');
+    } else {
+      const cardElement = document.querySelector(`[data-id="${id}"] img`);
+      if (cardElement && cardElement.src) {
+        overlayImg.src = cardElement.src;
+        overlayImg.classList.remove('custom');
+      } else {
+        overlayImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIHBob3RvPC90ZXh0Pjwvc3ZnPg==';
+        overlayImg.classList.remove('custom');
+      }
+    }
+  });
+  
+  document.getElementById('upload-btn').className = isAdmin ? '' : 'hidden';
+  document.getElementById('remove-btn').className = isAdmin ? '' : 'hidden';
+  overlay.classList.add('show');
+}
+
+function closeOverlay() {
+  document.getElementById('overlay').classList.remove('show');
+}
 
 function triggerUpload() {
   document.getElementById('file-input').click();
 }
 
-async function uploadPhoto() {
+function uploadPhoto() {
   const file = document.getElementById('file-input').files[0];
   if (!file || !isAdmin || !currentCardId) return;
+  if (!file.type.startsWith('image/')) {
+    alert('Please choose an image file.');
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = async (e) => {
@@ -765,7 +755,7 @@ async function uploadPhoto() {
       
       alert('Photo uploaded successfully!');
       closeOverlay();
-      loadCards(); // Refresh view
+      loadCards();
     } catch (error) {
       alert('Upload failed: ' + error.message);
     }
@@ -773,23 +763,32 @@ async function uploadPhoto() {
   reader.readAsDataURL(file);
 }
 
-async function removePhoto() {
+function removePhoto() {
   if (!isAdmin || !currentCardId) return;
   
   if (confirm('Remove this photo?')) {
-    try {
-      await db.ref(`cards/${currentCardId}`).remove();
+    db.ref(`cards/${currentCardId}`).remove().then(() => {
       alert('Photo removed!');
       closeOverlay();
-      loadCards(); // Refresh view
-    } catch (error) {
+      loadCards();
+    }).catch(error => {
       alert('Remove failed: ' + error.message);
-    }
+    });
   }
 }
 
 // Initialize
-loadCards();
+document.addEventListener('DOMContentLoaded', loadCards);
+
+// Close admin panel when clicking outside
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('admin-panel');
+  const toggle = document.querySelector('.admin-toggle');
+  
+  if (adminPanelVisible && !panel.contains(e.target) && !toggle.contains(e.target)) {
+    toggleAdminPanel();
+  }
+});
 </script>
 </body>
 </html>
