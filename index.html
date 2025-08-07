@@ -196,40 +196,23 @@ z-index: 1000;
 <input type='file' id='uploader' accept='image/*' style='display:none' />
 <div id='toast'></div>
 
+<!-- Load dependencies in correct order -->
 <script src="https://cdn.jsdelivr.net/npm/@octokit/rest@19.0.7/dist/index.umd.js"></script>
-<script>
-// Define isGitHubPages before using it
-const isGitHubPages = window.location.hostname.includes('github.io');
-
-// Move initialization into a function
-function initialize() {
-  if (window.Octokit) {
-    if (!isGitHubPages) {
-      const script = document.createElement('script');
-      script.src = 'config.js';
-      script.onload = () => testGitHubToken().then(isValid => {
-        if (isValid) buildWall();
-      });
-      document.body.appendChild(script);
-    } else {
-      testGitHubToken().then(isValid => {
-        if (isValid) buildWall();
-      });
-    }
-  } else {
-    setTimeout(initialize, 100); // Try again if Octokit isn't loaded yet
-  }
-}
-
-// Start initialization when document is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initialize);
-} else {
-  initialize();
-}
-</script>
-
+<script src="config.js"></script>
 <script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
+
+<script>
+// Single initialization point
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.Octokit) {
+    testGitHubToken().then(isValid => {
+      if (isValid) buildWall();
+    });
+  } else {
+    console.error('❌ Octokit not loaded. Check script tag.');
+  }
+});
+</script>
 
 <script>
     
