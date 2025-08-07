@@ -196,26 +196,24 @@ z-index: 1000;
 <input type='file' id='uploader' accept='image/*' style='display:none' />
 <div id='toast'></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@octokit/rest@19.0.7/dist/index.umd.js"></script>
 <script>
-// For GitHub Pages deployment
-const isGitHubPages = window.location.hostname.includes('github.io');
-if (isGitHubPages) {
-  // Extract owner/repo from GitHub Pages URL
-  const pathParts = window.location.pathname.split('/');
-  window.githubOwner = pathParts[1];
-  window.githubRepo = pathParts[2] || pathParts[1];
-  // Use GitHub Pages token if provided
-  window.token = window.GITHUB_TOKEN || '';
-} else {
-  // Load local config if not on GitHub Pages
-  const script = document.createElement('script');
-  script.src = 'config.js';
-  document.body.appendChild(script);
-}
+  const isGitHubPages = window.location.hostname.includes('github.io');
+  if (isGitHubPages) {
+  } else {
+    const script = document.createElement('script');
+    script.src = 'config.js';
+    script.onload = () => {
+      // Only initialize after both Octokit and config are loaded
+      testGitHubToken().then(isValid => {
+        if (isValid) buildWall();
+      });
+    };
+    document.body.appendChild(script);
+  }
 </script>
 
 <script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
-<script src="https://cdn.jsdelivr.net/npm/@octokit/rest@19.0.7/dist/index.umd.js"></script>
 
 <script>
     
@@ -550,21 +548,16 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideOverla
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', async () => {
-    const isValid = await testGitHubToken();
-    if (isValid) {
-      buildWall();
-    } else {
-      document.getElementById('wall').textContent = 'GitHub authentication failed. Check console for details.';
-    }
+  document.addEventListener('DOMContentLoaded', () => {
+    // Config is already loaded at this point
+    if (!isGitHubPages) return; // Local init handled by config.js onload
+    testGitHubToken().then(isValid => {
+      if (isValid) buildWall();
+    });
   });
-} else {
+} else if (!isGitHubPages) {
   testGitHubToken().then(isValid => {
-    if (isValid) {
-      buildWall();
-    } else {
-      document.getElementById('wall').textContent = 'GitHub authentication failed. Check console for details.';
-    }
+    if (isValid) buildWall();
   });
 }
 </script>
