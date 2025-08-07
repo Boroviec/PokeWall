@@ -38,12 +38,39 @@ justify-content: center;
 }
 
 .family-block {
-background: #000;
-border-radius: 12px;
-box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-padding: 24px;
+background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+border-radius: 16px;
+box-shadow: 
+  0 8px 32px rgba(0,0,0,0.3),
+  inset 0 1px 0 rgba(255,255,255,0.1);
+padding: 28px;
 display: grid;
 gap: var(--gap);
+position: relative;
+border: 1px solid rgba(255,255,255,0.1);
+}
+
+.family-block::before {
+content: '';
+position: absolute;
+top: 0;
+left: 0;
+right: 0;
+height: 1px;
+background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+}
+
+.family-label {
+position: absolute;
+top: -12px;
+left: 20px;
+background: linear-gradient(90deg, #ff6b35, #f7931e);
+color: white;
+padding: 4px 12px;
+border-radius: 12px;
+font-size: 12px;
+font-weight: bold;
+box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 .pokemon-card {
@@ -163,30 +190,297 @@ transform: translateY(-2px);
 box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 }
 
+/* Enhanced Admin Panel */
+.admin-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #ff0000 50%, #ffffff 50%);
+  border: 3px solid #333;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: transform 0.3s var(--ease);
+  z-index: 1002;
+}
+
+.admin-toggle:hover {
+  transform: scale(1.1);
+}
+
+.admin-toggle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border: 3px solid #333;
+  border-radius: 50%;
+}
+
+.admin-toggle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background: #333;
+  border-radius: 50%;
+}
+
 #admin-panel {
-position: fixed;
-top: 10px;
-right: 10px;
-background: white;
-padding: 10px;
-border-radius: 5px;
-box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-z-index: 1001;
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 
+    0 8px 32px rgba(0,0,0,0.15),
+    0 2px 8px rgba(0,0,0,0.1);
+  z-index: 1001;
+  border: 1px solid rgba(0,0,0,0.1);
+  min-width: 200px;
+  transform: translateY(-10px) scale(0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s var(--ease);
+}
+
+#admin-panel.show {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#admin-panel input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 12px;
+  transition: border-color 0.3s ease;
+  box-sizing: border-box;
+}
+
+#admin-panel input:focus {
+  outline: none;
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+}
+
+#admin-panel button {
+  width: 100%;
+  padding: 10px;
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  margin-bottom: 10px;
+}
+
+#admin-panel button:hover {
+  transform: translateY(-1px);
+}
+
+#admin-status {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 8px;
 }
 
 .hidden { display: none !important; }
+
+/* Pokeball Spinner */
+.pokeball-spinner {
+  width: 60px;
+  height: 60px;
+  margin: 40px auto;
+  position: relative;
+  animation: spin 2s linear infinite;
+}
+
+.pokeball-spinner::before {
+  content: '';
+  position: absolute;
+  width: 60px;
+  height: 30px;
+  background: #ff0000;
+  border-radius: 60px 60px 0 0;
+  border: 3px solid #333;
+  border-bottom: 3px solid #333;
+}
+
+.pokeball-spinner::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 60px;
+  height: 30px;
+  background: #ffffff;
+  border-radius: 0 0 60px 60px;
+  border: 3px solid #333;
+  border-top: none;
+}
+
+.pokeball-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border: 4px solid #333;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.pokeball-center::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: #333;
+  border-radius: 50%;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Skeleton Loading Cards */
+.skeleton-card {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Collection Counter */
+.collection-stats {
+  text-align: center;
+  margin: 10px 0 30px 0;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.stats-number {
+  font-weight: bold;
+  color: #ff6b35;
+  font-size: 1.4rem;
+}
+
+.progress-bar {
+  width: 300px;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  margin: 10px auto;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6b35, #f7931e);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+/* Enhanced Card Effects */
+.pokemon-card.custom {
+  box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+  border: 2px solid rgba(255, 107, 53, 0.3);
+}
+
+.custom-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: linear-gradient(45deg, #ffd700, #ffed4e);
+  color: #333;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.card-number {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  z-index: 2;
+}
 </style>
 </head>
 <body>
 <h1>PokeWall</h1>
 
+<div class="collection-stats">
+  <div>
+    <span class="stats-number" id="collected-count">0</span> / 
+    <span class="stats-number">151</span> Pokémon Collected
+  </div>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+  </div>
+</div>
+
+<div class="admin-toggle" onclick="toggleAdminPanel()" title="Admin Panel"></div>
+
 <div id="admin-panel">
-  <input type="password" id="admin-password" placeholder="Admin password">
+  <input type="password" id="admin-password" placeholder="Enter admin password">
   <button onclick="toggleAdmin()">Login</button>
   <span id="admin-status"></span>
 </div>
 
-<div id='wall'>Loading Pokémon...</div>
+<div id='wall'>
+  <div style="text-align: center; padding: 40px;">
+    <div class="pokeball-spinner">
+      <div class="pokeball-center"></div>
+    </div>
+    <div style="margin-top: 20px; color: #666; font-size: 1.1rem;">
+      Loading Pokémon cards...
+    </div>
+  </div>
+</div>
 
 <div id='overlay' onclick="closeOverlay()">
 <div class='overlay-content'>
@@ -207,6 +501,7 @@ const db = firebase.database();
 
 let isAdmin = false;
 let currentCardId = null;
+let adminPanelVisible = false;
 
 // Google Sheets configuration
 const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
@@ -247,10 +542,26 @@ const generatePokemonData = () => {
   return families;
 };
 
-// Load and display cards with Google Sheets data
+// Update collection stats
+function updateCollectionStats(customData) {
+  const collectedCount = Object.keys(customData).length;
+  const percentage = (collectedCount / 151) * 100;
+  
+  document.getElementById('collected-count').textContent = collectedCount;
+  document.getElementById('progress-fill').style.width = `${percentage}%`;
+}
+
+// Enhanced loadCards function
 async function loadCards() {
   const wall = document.getElementById('wall');
-  wall.innerHTML = 'Loading Pokémon from Google Sheets...';
+  
+  // Show skeleton loading
+  wall.innerHTML = '';
+  for (let i = 0; i < 24; i++) {
+    const skeleton = document.createElement('div');
+    skeleton.className = 'skeleton-card';
+    wall.appendChild(skeleton);
+  }
 
   try {
     // Fetch data from Google Sheets
@@ -287,9 +598,12 @@ async function loadCards() {
     const customImages = await db.ref('cards').once('value');
     const customData = customImages.val() || {};
     
+    // Update stats
+    updateCollectionStats(customData);
+    
     wall.innerHTML = '';
     
-    // Create family blocks with Pokemon data
+    // Create family blocks with enhanced styling
     order.sort((a,b) => Number(a) - Number(b)).forEach(group => {
       const cards = families[group];
       
@@ -298,18 +612,37 @@ async function loadCards() {
       const cols = Math.min(cards.length, 9);
       slab.style.gridTemplateColumns = `repeat(${cols}, var(--card-w))`;
 
+      // Add family label
+      const label = document.createElement('div');
+      label.className = 'family-label';
+      label.textContent = `Group ${group}`;
+      slab.appendChild(label);
+
       cards.sort((a,b) => a.id - b.id).forEach(({ id, url }) => {
         const card = document.createElement('div');
         card.className = 'pokemon-card';
         card.dataset.id = id;
         card.onclick = () => openCard(id);
         
-        // Use custom image if available, otherwise use original from sheets
+        // Add card number
+        const cardNumber = document.createElement('div');
+        cardNumber.className = 'card-number';
+        cardNumber.textContent = `#${id}`;
+        card.appendChild(cardNumber);
+        
+        // Use custom image if available
         if (customData[id]) {
           const img = document.createElement('img');
           img.src = customData[id].url;
           card.appendChild(img);
           card.classList.add('custom');
+          
+          // Add custom badge
+          const badge = document.createElement('div');
+          badge.className = 'custom-badge';
+          badge.textContent = '★';
+          badge.title = 'Custom photo uploaded';
+          card.appendChild(badge);
         } else if (url) {
           const img = document.createElement('img');
           img.src = url;
@@ -370,20 +703,49 @@ function closeOverlay() {
   overlay.classList.remove('show');
 }
 
+function toggleAdminPanel() {
+  const panel = document.getElementById('admin-panel');
+  adminPanelVisible = !adminPanelVisible;
+  
+  if (adminPanelVisible) {
+    panel.classList.add('show');
+    // Focus on password input when panel opens
+    setTimeout(() => {
+      document.getElementById('admin-password').focus();
+    }, 300);
+  } else {
+    panel.classList.remove('show');
+  }
+}
+
 function toggleAdmin() {
   const password = document.getElementById('admin-password').value;
   const status = document.getElementById('admin-status');
   
   if (password === 'Proste89') {
     isAdmin = true;
-    status.textContent = '✅ Admin';
-    status.style.color = 'green';
+    status.textContent = '✅ Admin Access';
+    status.style.color = '#28a745';
+    // Auto-hide panel after successful login
+    setTimeout(() => {
+      toggleAdminPanel();
+    }, 1500);
   } else {
     isAdmin = false;
-    status.textContent = '❌ Access denied';
-    status.style.color = 'red';
+    status.textContent = '❌ Access Denied';
+    status.style.color = '#dc3545';
   }
 }
+
+// Close admin panel when clicking outside
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('admin-panel');
+  const toggle = document.querySelector('.admin-toggle');
+  
+  if (adminPanelVisible && !panel.contains(e.target) && !toggle.contains(e.target)) {
+    toggleAdminPanel();
+  }
+});
 
 function triggerUpload() {
   document.getElementById('file-input').click();
