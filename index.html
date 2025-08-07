@@ -435,10 +435,21 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
   position: relative;
   width: var(--card-w);
   height: var(--card-h);
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, #dbeafe 25%, #bfdbfe 50%, #dbeafe 75%);
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
   border-radius: 8px;
+  border: 2px solid #93c5fd;
+  position: relative;
+}
+
+.skeleton-card::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 6px;
+  opacity: 0.3;
 }
 
 @keyframes loading {
@@ -446,28 +457,42 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
   100% { background-position: -200% 0; }
 }
 
-/* Enhanced Skeleton Loading */
+/* Enhanced Skeleton Loading with Pokemon Blue Theme */
 .skeleton-family-block {
-  background: linear-gradient(135deg, #e8e8e8 0%, #f0f0f0 100%);
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
   border-radius: 16px;
+  box-shadow: 
+    0 8px 32px rgba(30, 58, 138, 0.3),
+    inset 0 1px 0 rgba(255,255,255,0.1);
   padding: 28px;
   display: grid;
   gap: var(--gap);
   position: relative;
-  margin-bottom: var(--gap);
+  border: 1px solid rgba(59, 130, 246, 0.3);
   animation: skeleton-pulse 2s ease-in-out infinite;
+}
+
+.skeleton-family-block::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
 }
 
 .skeleton-family-label {
   position: absolute;
   top: -12px;
   left: 20px;
-  background: linear-gradient(90deg, #d0d0d0, #e0e0e0);
+  background: linear-gradient(90deg, #60a5fa, #93c5fd);
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
   height: 16px;
   width: 60px;
+  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.4);
   animation: skeleton-pulse 2s ease-in-out infinite;
 }
 
@@ -475,7 +500,7 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  50% { opacity: 0.8; }
 }
 </style>
 </head>
@@ -652,13 +677,41 @@ async function loadCards() {
 function showSkeletonLoading(wall) {
   wall.innerHTML = '';
   
-  // Simple grid of skeleton cards
-  for (let i = 0; i < 20; i++) {
-    const card = document.createElement('div');
-    card.className = 'skeleton-card';
-    card.style.animationDelay = `${i * 0.05}s`;
-    wall.appendChild(card);
-  }
+  // Create realistic skeleton layout that matches actual structure
+  const skeletonFamilies = [
+    { cards: 3 },  // Family with 3 cards (like Bulbasaur line)
+    { cards: 3 },  // Family with 3 cards (like Charmander line)
+    { cards: 3 },  // Family with 3 cards (like Squirtle line)
+    { cards: 2 },  // Family with 2 cards
+    { cards: 1 },  // Single Pokemon
+    { cards: 3 },  // Family with 3 cards
+    { cards: 2 },  // Family with 2 cards
+    { cards: 1 },  // Single Pokemon
+    { cards: 3 },  // Family with 3 cards
+    { cards: 2 },  // Family with 2 cards
+  ];
+  
+  skeletonFamilies.forEach((family, index) => {
+    const slab = document.createElement('div');
+    slab.className = 'skeleton-family-block';
+    slab.style.gridTemplateColumns = `repeat(${family.cards}, var(--card-w))`;
+    
+    // Add skeleton family label
+    const label = document.createElement('div');
+    label.className = 'skeleton-family-label';
+    slab.appendChild(label);
+    
+    // Add skeleton cards
+    for (let i = 0; i < family.cards; i++) {
+      const card = document.createElement('div');
+      card.className = 'skeleton-card';
+      // Add delay for wave effect
+      card.style.animationDelay = `${(index * 0.1) + (i * 0.05)}s`;
+      slab.appendChild(card);
+    }
+    
+    wall.appendChild(slab);
+  });
 }
 
 // Update collection stats
