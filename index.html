@@ -196,62 +196,27 @@ z-index: 1000;
 <input type='file' id='uploader' accept='image/*' style='display:none' />
 <div id='toast'></div>
 
-<!-- Load dependencies in correct order -->
-<script src="https://cdn.jsdelivr.net/npm/@octokit/rest@19.0.7/dist/index.umd.js"></script>
-<script src="config.js"></script>
-<script src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js'></script>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
 <script>
-// Single initialization point
-document.addEventListener('DOMContentLoaded', () => {
-  if (window.Octokit) {
-    testGitHubToken().then(isValid => {
-      if (isValid) buildWall();
-    });
-  } else {
-    console.error('❌ Octokit not loaded. Check script tag.');
-  }
-});
-</script>
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
 
-<script>
-    
-const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
-const GID      = '0';
-const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
-const RAW_ROOT = isGitHubPages 
-  ? `https://raw.githubusercontent.com/${window.githubOwner}/${window.githubRepo}/main`
-  : "https://raw.githubusercontent.com/boroviec/PokeWall/main";
-    const MANIFEST_URL  = `${RAW_ROOT}/data/cards.json`;
-
-const parseCSV = (text) => {
-const rows = text.trim().split(/\r?\n/).map(line => {
-const cells = line.split(/,(?=(?:[^\\"]*\\"[^\\"]*\\")*[^\\"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
-return cells;
-});
-return rows;
-};
-
-const toast = (msg, dur = 1800) => {
-const t = document.getElementById('toast');
-t.textContent = msg;
-t.classList.add('show');
-clearTimeout(t._tm);
-t._tm = setTimeout(() => t.classList.remove('show'), dur);
-};
+// Initialize wall when document is ready
+document.addEventListener('DOMContentLoaded', buildWall);
 
 async function buildWall() {
-// Add this check at the start of buildWall
-if (!window.token || !window.githubOwner || !window.githubRepo) {
-  console.error('GitHub credentials not set. Please set window.token, window.githubOwner, and window.githubRepo');
-  return;
-}
-
-const wall = document.getElementById('wall');
-try {
-const csvText = await fetch(CSV_URL).then(r => r.text());
-const rows    = parseCSV(csvText);
-const header      = rows[0].map(h => h.trim());
+  const wall = document.getElementById('wall');
+  try {
+    // Load card data from Google Sheets
+    const csvText = await fetch(CSV_URL).then(r => r.text());
+    const rows = parseCSV(csvText);
+    const header      = rows[0].map(h => h.trim());
 const colNo       = header.indexOf('No.');
 const colGroup    = header.indexOf('Group');
 const colCardLink = header.indexOf('Link to the Card');
@@ -267,6 +232,14 @@ const url   = r[colCardLink].trim();
 if (!families[group]) { families[group] = []; order.push(group); }
 families[group].push({ id, url });
 });
+
+    // Load custom images from Firebase
+    const customImgs = {};
+    const snapshot = await firebase.database().ref('cards').once('value');
+    const firebaseData = snapshot.val() || {};
+    Object.entries(firebaseData).forEach(([id, data]) => {
+      customImgs[id] = data.url;
+    });
 
 let customImgs = {};
 // Load the manifest once per buildWall()
@@ -303,131 +276,6 @@ wall.textContent = 'Failed to load data.';
 console.error(err);
 }
 }
-
-// Add or replace the uploadImageToGitHub function in your script
-async function uploadImageToGitHub(file, cardId) {
-  if (!window.token) {
-    throw new Error('GitHub token not available.');
-  }
-  const owner = window.githubOwner; // e.g. 'boroviec'
-  const repo  = window.githubRepo;  // e.g. 'PokeWall'
-  
-  // Create an Octokit instance using your token
-  const OctokitConstructor = window.Octokit && window.Octokit.default ? window.Octokit.default : window.Octokit;
-  const octokit = new OctokitConstructor({ auth: window.token });
-  
-  // Define the file path in the repo for this card image.
-  const imagePath = `img/custom/${cardId}.png`;
-  
-  // Convert the file to a base64 string.
-  const base64Content = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]); // Remove the data URL prefix
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-  
-  // Check if the file already exists (to update rather than create)
-  let sha;
-  try {
-    const { data } = await octokit.repos.getContent({
-      owner,
-      repo,
-      path: imagePath
-    });
-    sha = data.sha;
-  } catch (error) {
-    // File doesn't exist; we'll create it.
-  }
-  
-  // Create or update the image file on GitHub.
-  const imageResponse = await octokit.repos.createOrUpdateFileContents({
-    owner,
-    repo,
-    path: imagePath,
-    message: `Upload custom card image for card ${cardId}`,
-    content: base64Content,
-    sha,
-    committer: { name: 'Your Name', email: 'you@example.com' },
-    author: { name: 'Your Name', email: 'you@example.com' }
-  });
-  
-  // Update the manifest file (cards.json) with the new image path.
-  const manifestPath = 'data/cards.json';
-  let manifestSha;
-  let manifestData = {};
-  try {
-    const { data } = await octokit.repos.getContent({
-      owner,
-      repo,
-      path: manifestPath
-    });
-    manifestSha = data.sha;
-    manifestData = JSON.parse(atob(data.content));
-  } catch (err) {
-    // If the manifest doesn't exist, start with an empty object.
-    manifestData = {};
-  }
-  
-  manifestData[cardId] = imagePath;
-  const updatedManifest = btoa(JSON.stringify(manifestData, null, 2));
-  
-  await octokit.repos.createOrUpdateFileContents({
-    owner,
-    repo,
-    path: manifestPath,
-    message: `Update manifest for card ${cardId}`,
-    content: updatedManifest,
-    sha: manifestSha,
-    committer: { name: 'Your Name', email: 'you@example.com' },
-    author: { name: 'Your Name', email: 'you@example.com' }
-  });
-  
-  // Return the GitHub-hosted image URL.
-  return imageResponse.data.content.download_url;
-}
-
-async function testGitHubToken() {
-  // First check if Octokit is loaded
-  if (typeof Octokit === 'undefined') {
-    console.error('❌ Octokit not loaded. Check script tag.');
-    return false;
-  }
-
-  // Check if credentials are set
-  if (!window.token || !window.githubOwner || !window.githubRepo) {
-    console.error('❌ Missing credentials. Please set token, owner, and repo.');
-    return false;
-  }
-
-  try {
-    const octokit = new Octokit({ auth: window.token });
-    
-    // Test authentication
-    const { data: user } = await octokit.rest.users.getAuthenticated();
-    console.log('✅ Authenticated as:', user.login);
-    
-    // Test repo access
-    const { data: repo } = await octokit.rest.repos.get({
-      owner: window.githubOwner,
-      repo: window.githubRepo
-    });
-    console.log('✅ Repository access confirmed:', repo.full_name);
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Error:', error.message);
-    toast('GitHub authentication failed: ' + error.message);
-    return false;
-  }
-}
-
-// Run the test
-testGitHubToken().then(isValid => {
-  if (isValid) {
-    console.log('🎉 All checks passed! Ready to upload images.');
-  }
-});
 
 function enableInteractions() {
 const uploader = document.getElementById('uploader');
