@@ -574,14 +574,18 @@ const parseCSV = text => text.trim().split(/\r?\n/)
   .map(line => line.split(/,(?=(?:[^\\"]*\\"[^\\"]*\\")*[^\\"]*$)/)
   .map(c => c.replace(/^"|"$/g, '').trim()));
 
-// Simplified loadCards function
+// Enhanced loadCards function with performance optimizations
 async function loadCards() {
   const wall = document.getElementById('wall');
   showSkeletonLoading(wall);
 
   try {
-    // Fetch data from Google Sheets
-    const csvText = await fetch(CSV_URL).then(r => r.text());
+    // Load Google Sheets and Firebase data in parallel
+    const [csvText, customImages] = await Promise.all([
+      fetch(CSV_URL).then(r => r.text()),
+      db.ref('cards').once('value')
+    ]);
+    
     const rows = parseCSV(csvText);
     const header = rows[0].map(h => h.trim());
     
@@ -610,15 +614,13 @@ async function loadCards() {
       families[group].push({ id, url, group });
     });
 
-    // Get custom images from Firebase
-    const customImages = await db.ref('cards').once('value');
     const customData = customImages.val() || {};
     
     // Update stats
     updateCollectionStats(customData);
     wall.innerHTML = '';
     
-    // Create family blocks with Pokemon data
+    // Create family blocks with lazy loading
     order.sort((a,b) => Number(a) - Number(b)).forEach(group => {
       const cards = families[group];
       
@@ -642,12 +644,15 @@ async function loadCards() {
         // Use custom image if available
         if (customData[id]) {
           const img = document.createElement('img');
+          // Lazy load images for better performance
+          img.loading = 'lazy';
           img.src = customData[id].url;
           card.appendChild(img);
           card.classList.add('custom');
           
         } else if (url) {
           const img = document.createElement('img');
+          img.loading = 'lazy';
           img.src = url;
           card.appendChild(img);
         }
