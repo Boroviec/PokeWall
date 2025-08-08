@@ -544,11 +544,11 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 </div>
 
 <div id='overlay' onclick="closeOverlay()">
-<div class='overlay-content'>
-<img id="overlay-img" alt='card enlarged' />
-<button id='upload-btn' class="hidden" onclick="triggerUpload()">Upload</button>
-<button id='remove-btn' class="hidden" onclick="removePhoto()">Remove</button>
-</div>
+  <div class='overlay-content' onclick="event.stopPropagation()">
+    <img id="overlay-img" alt='card enlarged' />
+    <button id='upload-btn' class="hidden" onclick="triggerUpload()">Upload</button>
+    <button id='remove-btn' class="hidden" onclick="removePhoto()">Remove</button>
+  </div>
 </div>
 
 <input type='file' id='file-input' accept='image/*' style='display:none' onchange="uploadPhoto()" />
@@ -563,6 +563,8 @@ const db = firebase.database();
 let isAdmin = false;
 let currentCardId = null;
 let adminPanelVisible = false;
+let listenersAttached = false;
+let customDataCache = {}; // keep current custom images for fast stats and slot updates
 
 // Google Sheets configuration
 const SHEET_ID = '1NZfjUgrG4uN1lQOPpnRfA9g6n_XSIzLbVpe6BSx7bsE';
@@ -580,86 +582,71 @@ async function loadCards() {
   showSkeletonLoading(wall);
 
   try {
-    // Load Google Sheets and Firebase data in parallel
-    const [csvText, customImages] = await Promise.all([
-      fetch(CSV_URL).then(r => r.text()),
+    const [csvText, customSnap] = await Promise.all([
+      fetch(CSV_URL).then(r => {
+        if (!r.ok) throw new Error(`Sheets fetch failed: ${r.status}`);
+        return r.text();
+      }),
       db.ref('cards').once('value')
     ]);
-    
+
     const rows = parseCSV(csvText);
     const header = rows[0].map(h => h.trim());
-    
     const colNo = header.indexOf('No.');
     const colGroup = header.indexOf('Group');
     const colCardLink = header.indexOf('Link to the Card');
-    
     if (colNo === -1 || colGroup === -1 || colCardLink === -1) {
       throw new Error('Required columns not found in Google Sheets');
     }
 
-    // Parse Pokemon data from sheets
     const families = {};
     const order = [];
-    
     rows.slice(1).forEach(r => {
       const id = parseInt(r[colNo], 10);
       if (!id || id > 151) return;
       const group = r[colGroup].trim();
       const url = r[colCardLink].trim();
-      
-      if (!families[group]) { 
-        families[group] = []; 
-        order.push(group); 
-      }
+      if (!families[group]) { families[group] = []; order.push(group); }
       families[group].push({ id, url, group });
     });
 
-    const customData = customImages.val() || {};
-    
-    // Update stats
-    updateCollectionStats(customData);
+    const customData = customSnap.val() || {};
+    customDataCache = { ...customData }; // keep cache in sync with initial load
+    updateCollectionStats(customDataCache);
     wall.innerHTML = '';
-    
-    // Create family blocks with lazy loading
+
     order.sort((a,b) => Number(a) - Number(b)).forEach(group => {
       const cards = families[group];
-      
       const slab = document.createElement('div');
       slab.className = 'family-block';
-      const cols = Math.min(cards.length, 9);
-      slab.style.gridTemplateColumns = `repeat(${cols}, var(--card-w))`;
+      slab.style.gridTemplateColumns = `repeat(${Math.min(cards.length, 9)}, var(--card-w))`;
 
       cards.sort((a,b) => a.id - b.id).forEach(({ id, url }) => {
         const card = document.createElement('div');
         card.className = 'pokemon-card';
         card.dataset.id = id;
+        card.dataset.defaultUrl = url || ''; // <- save default/fallback URL
         card.onclick = () => openCard(id);
-        
-        // Add card number
-        const cardNumber = document.createElement('div');
-        cardNumber.className = 'card-number';
-        cardNumber.textContent = `#${id}`;
-        card.appendChild(cardNumber);
-        
-        // Use custom image if available
+
+        const num = document.createElement('div');
+        num.className = 'card-number';
+        num.textContent = `#${id}`;
+        card.appendChild(num);
+
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
         if (customData[id]) {
-          const img = document.createElement('img');
-          // Lazy load images for better performance
-          img.loading = 'lazy';
           img.src = customData[id].url;
-          card.appendChild(img);
           card.classList.add('custom');
-          
         } else if (url) {
-          const img = document.createElement('img');
-          img.loading = 'lazy';
           img.src = url;
-          card.appendChild(img);
         }
-        
+        card.appendChild(img);
+
         slab.appendChild(card);
       });
-      
+
       wall.appendChild(slab);
     });
 
@@ -672,6 +659,80 @@ async function loadCards() {
       </div>
     `;
   }
+
+  // attach realtime listeners once
+  if (!listenersAttached) {
+    attachCardRealtimeListeners();
+    listenersAttached = true;
+  }
+}
+
+// Update a single card slot in the DOM
+function applyCardUpdate(id, data) {
+  const card = document.querySelector(`.pokemon-card[data-id="${id}"]`);
+  if (!card) return;
+
+  let img = card.querySelector('img');
+  if (data && data.url) {
+    if (!img) {
+      img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      card.appendChild(img);
+    }
+    img.src = data.url;
+    card.classList.add('custom');
+  } else {
+    const def = card.dataset.defaultUrl || '';
+    if (def) {
+      if (!img) {
+        img = document.createElement('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        card.appendChild(img);
+      }
+      img.src = def;
+      card.classList.remove('custom');
+    } else {
+      if (img) img.remove();
+      card.classList.remove('custom');
+    }
+  }
+
+  // If overlay is open for this card, keep it in sync
+  if (String(currentCardId) === String(id) && document.getElementById('overlay').classList.contains('show')) {
+    const overlayImg = document.getElementById('overlay-img');
+    if (data && data.url) {
+      overlayImg.src = data.url;
+      overlayImg.classList.add('custom');
+    } else {
+      const def = card.dataset.defaultUrl || '';
+      if (def) {
+        overlayImg.src = def;
+        overlayImg.classList.remove('custom');
+      }
+    }
+  }
+}
+
+// Realtime listeners to update just affected slots + stats
+function attachCardRealtimeListeners() {
+  const ref = db.ref('cards');
+  ref.on('child_added', snap => {
+    customDataCache[snap.key] = snap.val();
+    applyCardUpdate(snap.key, snap.val());
+    updateCollectionStats(customDataCache);
+  });
+  ref.on('child_changed', snap => {
+    customDataCache[snap.key] = snap.val();
+    applyCardUpdate(snap.key, snap.val());
+    updateCollectionStats(customDataCache);
+  });
+  ref.on('child_removed', snap => {
+    delete customDataCache[snap.key];
+    applyCardUpdate(snap.key, null);
+    updateCollectionStats(customDataCache);
+  });
 }
 
 function showSkeletonLoading(wall) {
@@ -737,14 +798,12 @@ function toggleAdminPanel() {
 function toggleAdmin() {
   const password = document.getElementById('admin-password').value;
   const status = document.getElementById('admin-status');
-  
-  if (password === 'Proste89') {
+  const expected = window.ADMIN_PASSWORD || 'Proste89';
+  if (password === expected) {
     isAdmin = true;
     status.textContent = '✅ Admin Access';
     status.style.color = '#28a745';
-    setTimeout(() => {
-      toggleAdminPanel();
-    }, 1500);
+    setTimeout(() => { toggleAdminPanel(); }, 1500);
   } else {
     isAdmin = false;
     status.textContent = '❌ Access Denied';
@@ -787,46 +846,56 @@ function triggerUpload() {
   document.getElementById('file-input').click();
 }
 
-// Image compression function
+// Accurate base64 size (in MB)
+function base64SizeMB(dataUrl) {
+  const base64 = dataUrl.split(',')[1] || '';
+  const padding = (base64.endsWith('==') ? 2 : (base64.endsWith('=') ? 1 : 0));
+  const bytes = (base64.length * 3) / 4 - padding;
+  return bytes / (1024 * 1024);
+}
+
+// Image compression with strict 5MB cap and object URL cleanup
 function compressImage(file, maxSizeMB = 5) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
+    const objectUrl = URL.createObjectURL(file);
+
     img.onload = function() {
-      // Calculate new dimensions (max 1000px width/height for smaller files)
       let { width, height } = img;
       const maxDimension = 1000;
-      
       if (width > height && width > maxDimension) {
-        height = (height * maxDimension) / width;
-        width = maxDimension;
+        height = (height * maxDimension) / width; width = maxDimension;
       } else if (height > maxDimension) {
-        width = (width * maxDimension) / height;
-        height = maxDimension;
+        width = (width * maxDimension) / height; height = maxDimension;
       }
-      
-      canvas.width = width;
-      canvas.height = height;
-      
-      // Draw and compress
+      canvas.width = width; canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
-      
-      // Start with medium quality for smaller files
+
       let quality = 0.8;
       let dataUrl = canvas.toDataURL('image/jpeg', quality);
-      
-      // Reduce quality until under size limit
-      while (dataUrl.length > maxSizeMB * 1024 * 1024 && quality > 0.1) {
+      while (base64SizeMB(dataUrl) > maxSizeMB && quality > 0.1) {
         quality -= 0.1;
         dataUrl = canvas.toDataURL('image/jpeg', quality);
       }
-      
-      resolve(dataUrl);
+
+      URL.revokeObjectURL(objectUrl);
+
+      const sizeBytes = Math.round(base64SizeMB(dataUrl) * 1024 * 1024);
+      if (sizeBytes > maxSizeMB * 1024 * 1024) {
+        return reject(new Error('Compressed image still exceeds 5MB limit.'));
+      }
+
+      resolve({ dataUrl, width, height, sizeBytes });
     };
-    
-    img.src = URL.createObjectURL(file);
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to load image.'));
+    };
+
+    img.src = objectUrl;
   });
 }
 
@@ -845,22 +914,23 @@ async function uploadPhoto() {
   uploadBtn.disabled = true;
 
   try {
-    // Compress image to fit in Realtime Database
-    const compressedDataUrl = await compressImage(file);
-    
-    uploadBtn.textContent = 'Uploading...';
-    
-    // Store compressed image in Realtime Database
+    const { dataUrl, width, height, sizeBytes } = await compressImage(file, 5);
     await db.ref(`cards/${currentCardId}`).set({
-      url: compressedDataUrl,
+      url: dataUrl,
       timestamp: Date.now(),
-      filename: file.name
+      filename: file.name,
+      sizeBytes,
+      width,
+      height
     });
-    
+
+    // Update only this slot and cache locally (no full reload)
+    customDataCache[currentCardId] = { url: dataUrl, timestamp: Date.now(), sizeBytes, width, height };
+    applyCardUpdate(currentCardId, { url: dataUrl });
+    updateCollectionStats(customDataCache);
+
     alert('Photo uploaded successfully!');
     closeOverlay();
-    loadCards();
-    
   } catch (error) {
     console.error('Upload error:', error);
     alert('Upload failed: ' + error.message);
@@ -872,13 +942,18 @@ async function uploadPhoto() {
 
 async function removePhoto() {
   if (!isAdmin || !currentCardId) return;
-  
+
   if (confirm('Remove this photo?')) {
     try {
       await db.ref(`cards/${currentCardId}`).remove();
+
+      // Revert only this slot and cache (no full reload)
+      delete customDataCache[currentCardId];
+      applyCardUpdate(currentCardId, null);
+      updateCollectionStats(customDataCache);
+
       alert('Photo removed!');
       closeOverlay();
-      loadCards();
     } catch (error) {
       alert('Remove failed: ' + error.message);
     }

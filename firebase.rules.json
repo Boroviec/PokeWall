@@ -4,7 +4,25 @@
     ".write": true,
     "cards": {
       "$cardId": {
-        ".validate": "newData.hasChildren(['url', 'timestamp'])"
+        ".validate": "!newData.exists() || newData.hasChildren(['url','timestamp','sizeBytes'])",
+        "url": {
+          ".validate": "(!newData.exists()) || (newData.isString() && newData.val().matches('^data:image/(jpeg|jpg|png);base64,.*$'))"
+        },
+        "timestamp": {
+          ".validate": "(!newData.exists()) || newData.isNumber()"
+        },
+        "sizeBytes": {
+          ".validate": "(!newData.exists()) || (newData.isNumber() && newData.val() <= 5242880)"
+        },
+        "width": {
+          ".validate": "(!newData.exists()) || newData.isNumber()"
+        },
+        "height": {
+          ".validate": "(!newData.exists()) || newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     }
   }

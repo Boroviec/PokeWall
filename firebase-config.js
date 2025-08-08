@@ -8,5 +8,5 @@ const firebaseConfig = {
   databaseURL: "https://pokew-d61b0-default-rtdb.europe-west1.firebasedatabase.app"
 };
 
-// Add admin password for upload access
-const ADMIN_PASSWORD = 'Proste89';  // Change this to your preferred password
+// Expose admin password globally for the client app
+window.ADMIN_PASSWORD = 'Proste89';
