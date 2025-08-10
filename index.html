@@ -531,8 +531,8 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 <div class="admin-toggle" onclick="toggleAdminPanel()" title="Admin Panel"></div>
 
 <div id="admin-panel">
-  <input type="email" id="admin-email" placeholder="Admin email">
-  <input type="password" id="admin-password" placeholder="Password">
+  <input type="email" id="admin-email" placeholder="Admin email" autocomplete="off">
+  <input type="password" id="admin-password" placeholder="Password" autocomplete="new-password">
   <button onclick="handleAdminAuth()" id="admin-login-btn">Login</button>
   <button onclick="logoutAdmin()" id="admin-logout-btn" class="hidden">Logout</button>
   <span id="admin-status"></span>
@@ -811,8 +811,9 @@ function handleAdminAuth() {
   status.textContent = 'Authenticating...';
   status.style.color = '#666';
   auth.signInWithEmailAndPassword(email, pass)
-    .catch(err => {
-      status.textContent = '❌ ' + err.message;
+    .catch(() => {
+      // Generic to avoid user enumeration
+      status.textContent = '❌ Invalid credentials';
       status.style.color = '#dc3545';
     });
 }
