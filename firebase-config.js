@@ -7,6 +7,3 @@ const firebaseConfig = {
   appId: "1:287239019892:web:bc3729420913bf6e97a021",
   databaseURL: "https://pokew-d61b0-default-rtdb.europe-west1.firebasedatabase.app"
 };
-
-// Expose admin password globally for the client app
-window.ADMIN_PASSWORD = 'Proste89';

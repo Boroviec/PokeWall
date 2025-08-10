@@ -510,6 +510,10 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
   50% { opacity: 0.8; }
 }
 </style>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
 </head>
 <body>
 <h1>PokeWall</h1>
@@ -527,8 +531,10 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 <div class="admin-toggle" onclick="toggleAdminPanel()" title="Admin Panel"></div>
 
 <div id="admin-panel">
-  <input type="password" id="admin-password" placeholder="Enter admin password">
-  <button onclick="toggleAdmin()">Login</button>
+  <input type="email" id="admin-email" placeholder="Admin email">
+  <input type="password" id="admin-password" placeholder="Password">
+  <button onclick="handleAdminAuth()" id="admin-login-btn">Login</button>
+  <button onclick="logoutAdmin()" id="admin-logout-btn" class="hidden">Logout</button>
   <span id="admin-status"></span>
 </div>
 
@@ -553,12 +559,10 @@ box-shadow: 0 8px 18px rgba(0,0,0,0.35);
 
 <input type='file' id='file-input' accept='image/*' style='display:none' onchange="uploadPhoto()" />
 
-<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
-<script src="firebase-config.js"></script>
 <script>
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const auth = firebase.auth();
 
 let isAdmin = false;
 let currentCardId = null;
@@ -795,20 +799,69 @@ function toggleAdminPanel() {
   }
 }
 
-function toggleAdmin() {
-  const password = document.getElementById('admin-password').value;
+function handleAdminAuth() {
+  const email = document.getElementById('admin-email').value.trim();
+  const pass = document.getElementById('admin-password').value;
   const status = document.getElementById('admin-status');
-  const expected = window.ADMIN_PASSWORD || 'Proste89';
-  if (password === expected) {
-    isAdmin = true;
-    status.textContent = '✅ Admin Access';
-    status.style.color = '#28a745';
-    setTimeout(() => { toggleAdminPanel(); }, 1500);
-  } else {
-    isAdmin = false;
-    status.textContent = '❌ Access Denied';
+  if (!email || !pass) {
+    status.textContent = 'Enter credentials';
     status.style.color = '#dc3545';
+    return;
   }
+  status.textContent = 'Authenticating...';
+  status.style.color = '#666';
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(err => {
+      status.textContent = '❌ ' + err.message;
+      status.style.color = '#dc3545';
+    });
+}
+
+function logoutAdmin() {
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(async user => {
+  const status = document.getElementById('admin-status');
+  const loginBtn = document.getElementById('admin-login-btn');
+  const logoutBtn = document.getElementById('admin-logout-btn');
+  if (!user) {
+    isAdmin = false;
+    status.textContent = 'Logged out';
+    status.style.color = '#666';
+    loginBtn.classList.remove('hidden');
+    logoutBtn.classList.add('hidden');
+    document.getElementById('upload-btn').classList.add('hidden');
+    document.getElementById('remove-btn').classList.add('hidden');
+    return;
+  }
+  try {
+    const snap = await db.ref('admins/' + user.uid).once('value').catch(e => {
+      if (/permission|denied/i.test(e.message)) return { val: () => null };
+      throw e;
+    });
+    if (snap && snap.val() === true) {
+      isAdmin = true;
+      status.textContent = '✅ Admin';
+      status.style.color = '#28a745';
+      loginBtn.classList.add('hidden');
+      logoutBtn.classList.remove('hidden');
+    } else {
+      isAdmin = false;
+      status.textContent = 'No admin rights';
+      status.style.color = '#dc3545';
+      auth.signOut();
+    }
+  } catch (e) {
+    status.textContent = 'Error';
+    status.style.color = '#dc3545';
+    auth.signOut();
+  }
+});
+
+// Replace old toggleAdmin()
+function toggleAdmin() {
+  toggleAdminPanel(); // keep panel show/hide only
 }
 
 function openCard(id) {
@@ -912,9 +965,9 @@ async function uploadPhoto() {
   const originalText = uploadBtn.textContent;
   uploadBtn.textContent = 'Compressing...';
   uploadBtn.disabled = true;
-
   try {
     const { dataUrl, width, height, sizeBytes } = await compressImage(file, 5);
+    uploadBtn.textContent = 'Uploading...';
     await db.ref(`cards/${currentCardId}`).set({
       url: dataUrl,
       timestamp: Date.now(),
@@ -923,17 +976,17 @@ async function uploadPhoto() {
       width,
       height
     });
-
-    // Update only this slot and cache locally (no full reload)
     customDataCache[currentCardId] = { url: dataUrl, timestamp: Date.now(), sizeBytes, width, height };
     applyCardUpdate(currentCardId, { url: dataUrl });
     updateCollectionStats(customDataCache);
-
     alert('Photo uploaded successfully!');
     closeOverlay();
   } catch (error) {
-    console.error('Upload error:', error);
-    alert('Upload failed: ' + error.message);
+    if (error && /permission|denied/i.test(error.message)) {
+      alert('Permission denied: only admins can upload.');
+    } else {
+      alert('Upload failed: ' + error.message);
+    }
   } finally {
     uploadBtn.textContent = originalText;
     uploadBtn.disabled = false;
@@ -942,19 +995,18 @@ async function uploadPhoto() {
 
 async function removePhoto() {
   if (!isAdmin || !currentCardId) return;
-
-  if (confirm('Remove this photo?')) {
-    try {
-      await db.ref(`cards/${currentCardId}`).remove();
-
-      // Revert only this slot and cache (no full reload)
-      delete customDataCache[currentCardId];
-      applyCardUpdate(currentCardId, null);
-      updateCollectionStats(customDataCache);
-
-      alert('Photo removed!');
-      closeOverlay();
-    } catch (error) {
+  if (!confirm('Remove this photo?')) return;
+  try {
+    await db.ref(`cards/${currentCardId}`).remove();
+    delete customDataCache[currentCardId];
+    applyCardUpdate(currentCardId, null);
+    updateCollectionStats(customDataCache);
+    alert('Photo removed!');
+    closeOverlay();
+  } catch (error) {
+    if (error && /permission|denied/i.test(error.message)) {
+      alert('Permission denied: only admins can remove.');
+    } else {
       alert('Remove failed: ' + error.message);
     }
   }
